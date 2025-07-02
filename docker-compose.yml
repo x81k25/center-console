@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  center-console:
+    build: .
+    image: center-console:latest
+    container_name: center-console
+    ports:
+      - "8501:8501"
+    environment:
+      - REAR_DIFF_HOST=192.168.50.2
+      - REAR_DIFF_PORT=30812
+      - REAR_DIFF_PATH=/rear-diff/
+      - API_TIMEOUT=30
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

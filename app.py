@@ -2,247 +2,151 @@ import streamlit as st
 import requests
 import pandas as pd
 from config import Config
-import re
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+import time
 
-st.set_page_config(
-    page_title="Rear Diff Training Data Viewer",
-    page_icon="🚗",
-    layout="wide"
-)
+st.set_page_config(page_title="Training Backlog", layout="wide")
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes
-def fetch_training_data(base_url, limit=25, offset=0, sort_by="updated_at", sort_order="desc"):
+@st.cache_data(ttl=300)
+def fetch_training_data(config: Config, page: int = 1, limit: int = 20) -> Optional[Dict]:
     """Fetch training data from the API with caching"""
-    params = {
-        "limit": limit,
-        "offset": offset,
-        "sort_by": sort_by,
-        "sort_order": sort_order
-    }
-    
     try:
+        params = {
+            "page": page,
+            "limit": limit,
+            "sort_by": "updated_at",
+            "sort_order": "desc",
+            "reviewed": "false",
+            "media_type": "movie"
+        }
+        
         response = requests.get(
-            f"{base_url}training",
+            config.training_endpoint,
             params=params,
-            timeout=st.session_state.config.api_timeout
+            timeout=config.api_timeout
         )
         response.raise_for_status()
         return response.json()
-    except requests.RequestException as e:
-        st.error(f"Failed to fetch data from API: {str(e)}")
+    except Exception as e:
+        st.error(f"Failed to fetch training data: {str(e)}")
         return None
 
-def validate_imdb_id(imdb_id):
-    """Validate IMDB ID format (tt + 7-8 digits)"""
-    return bool(re.match(r'^tt\d{7,8}$', imdb_id))
-
-def update_label(imdb_id, new_label):
-    """Update label for a specific IMDB ID"""
-    if not validate_imdb_id(imdb_id):
-        st.warning(f"Invalid IMDB ID format: {imdb_id}")
-        return False
-    
-    endpoint = st.session_state.config.get_label_update_endpoint(imdb_id)
-    
+def update_label(config: Config, imdb_id: str, current_label: str) -> bool:
+    """Update the label for a training item"""
     try:
+        new_label = "would_not_watch" if current_label == "would_watch" else "would_watch"
+        
+        payload = {
+            "label": new_label,
+            "human_labeled": True,
+            "reviewed": True
+        }
+        
         response = requests.patch(
-            endpoint,
-            json={"imdb_id": imdb_id, "label": new_label},
-            timeout=st.session_state.config.api_timeout
+            config.get_label_update_endpoint(imdb_id),
+            json=payload,
+            timeout=config.api_timeout
         )
         response.raise_for_status()
-        result = response.json()
-        
-        if result.get("success"):
-            return True
-        else:
-            st.warning(f"Failed to update label: {result.get('message', 'Unknown error')}")
-            return False
-    except requests.RequestException as e:
-        st.warning(f"Failed to update label for {imdb_id}: {str(e)}")
-        return False
-
-def get_unique_labels():
-    """Get valid label values for the API"""
-    # Return the valid API labels (excluding None/null values)
-    return ['would_watch', 'would_not_watch']
-
-def initialize_app():
-    """Initialize the application and check connectivity"""
-    try:
-        config = Config()
-        st.session_state.config = config
-        
-        # Test API connectivity
-        st.info("Checking API connectivity...")
-        health_response = requests.get(config.health_endpoint, timeout=5)
-        health_response.raise_for_status()
-        
         return True
-    except ValueError as e:
-        st.error(f"Configuration Error: {str(e)}")
-        st.info("Please set the following environment variables:")
-        st.code("""
-export REAR_DIFF_HOST=192.168.50.2
-export REAR_DIFF_PORT=30812
-export REAR_DIFF_PATH=/rear-diff/
-export API_TIMEOUT=30
-        """)
+    except Exception as e:
+        st.error(f"Failed to update label for {imdb_id}: {str(e)}")
         return False
-    except requests.RequestException as e:
-        st.error(f"API Connection Error: Could not connect to {config.base_url}")
-        st.info(f"Error details: {str(e)}")
-        st.info("Please verify the API is running and accessible.")
+
+def mark_as_reviewed(config: Config, imdb_id: str) -> bool:
+    """Mark a training item as reviewed"""
+    try:
+        endpoint = f"{config.base_url}training/{imdb_id}/reviewed"
+        payload = {"reviewed": True}
+        
+        response = requests.patch(
+            endpoint,
+            json=payload,
+            timeout=config.api_timeout
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        st.error(f"Failed to mark {imdb_id} as reviewed: {str(e)}")
         return False
 
 def main():
-    st.title("🚗 Rear Diff Training Data Viewer")
+    """Main application function"""
+    try:
+        config = Config()
+    except ValueError as e:
+        st.error(f"Configuration Error: {str(e)}")
+        st.info("Please set the required environment variables: REAR_DIFF_HOST, REAR_DIFF_PORT")
+        return
     
-    # Initialize app
-    if 'initialized' not in st.session_state:
-        st.session_state.initialized = initialize_app()
+    st.title("Training Backlog")
     
-    if not st.session_state.initialized:
-        st.stop()
+    if st.button("Refresh Data", type="secondary"):
+        st.cache_data.clear()
+        st.rerun()
     
-    # Pagination controls
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
-    
-    with col1:
-        page_size = st.selectbox("Records per page", [25, 50, 100], index=0)
-    
-    with col2:
-        if 'current_page' not in st.session_state:
-            st.session_state.current_page = 0
-        page_number = st.number_input("Page", min_value=1, value=st.session_state.current_page + 1)
-        st.session_state.current_page = page_number - 1
-    
-    with col3:
-        sort_by = st.selectbox("Sort by", ["updated_at", "created_at", "imdb_id", "label"], index=0)
-    
-    with col4:
-        sort_order = st.selectbox("Sort order", ["desc", "asc"], index=0)
-    
-    # Fetch data
-    offset = st.session_state.current_page * page_size
-    data_response = fetch_training_data(
-        st.session_state.config.base_url,
-        limit=page_size,
-        offset=offset,
-        sort_by=sort_by,
-        sort_order=sort_order
-    )
-    
-    if not data_response:
-        st.stop()
-    
-    # Process data
-    data = data_response.get("data", [])
-    pagination = data_response.get("pagination", {})
+    data = fetch_training_data(config)
     
     if not data:
-        st.warning("No data available")
-        st.stop()
+        return
     
-    # Create DataFrame
-    df = pd.DataFrame(data)
+    items = data.get("items", [])
     
-    # Get unique labels for dropdown
-    all_labels = get_unique_labels()
+    if not items:
+        st.success("✅ Backlog cleared")
+        return
     
-    # Column visibility controls
-    st.subheader("Display Options")
-    available_columns = df.columns.tolist()
-    selected_columns = st.multiselect(
-        "Select columns to display",
-        available_columns,
-        default=available_columns
-    )
+    st.info(f"Showing {len(items)} unreviewed movies")
     
-    # Display data with editable labels
-    st.subheader(f"Training Data (Total: {pagination.get('total', 0)} records)")
-    
-    # Create a container for the data editor
-    data_container = st.container()
-    
-    # Track label updates
-    if 'label_updates' not in st.session_state:
-        st.session_state.label_updates = {}
-    
-    # Display each row with editable label dropdown
-    for idx, row in df.iterrows():
-        cols = st.columns([3, 2, 2, 2, 1])
-        
-        # Display key fields
-        with cols[0]:
-            st.text(f"IMDB: {row.get('imdb_id', 'N/A')}")
-            st.text(f"Title: {row.get('media_title', 'N/A')}")
-        
-        with cols[1]:
-            st.text(f"Type: {row.get('media_type', 'N/A')}")
-            st.text(f"Year: {row.get('release_year', 'N/A')}")
-        
-        with cols[2]:
-            current_label = row.get('label')
-            # Handle None/null labels
-            if current_label is None:
-                current_label = ''
-            label_key = f"label_{row['imdb_id']}"
+    for idx, item in enumerate(items):
+        with st.container():
+            col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 2, 2])
             
-            # Create dropdown with unique labels (None/empty shows as first option)
-            new_label = st.selectbox(
-                "Label",
-                options=['(No Label)'] + all_labels,
-                index=all_labels.index(current_label) + 1 if current_label in all_labels else 0,
-                key=label_key
-            )
+            with col1:
+                st.write(f"**{item.get('media_title', 'Unknown')}**")
             
-            # Track if label changed (ignore "(No Label)" selection)
-            if new_label != current_label and new_label != "(No Label)":
-                st.session_state.label_updates[row['imdb_id']] = new_label
-        
-        with cols[3]:
-            st.text(f"Human Labeled: {row.get('human_labeled', False)}")
-            if 'updated_at' in row:
-                st.text(f"Updated: {row['updated_at'][:10]}")
-        
-        with cols[4]:
-            if row['imdb_id'] in st.session_state.label_updates:
-                if st.button("Save", key=f"save_{row['imdb_id']}"):
-                    new_label = st.session_state.label_updates[row['imdb_id']]
-                    if update_label(row['imdb_id'], new_label):
-                        st.success(f"Updated label for {row['imdb_id']}")
-                        del st.session_state.label_updates[row['imdb_id']]
-                        # Clear cache to refresh data
+            with col2:
+                rt_score = item.get('rt_score', 'N/A')
+                st.write(f"RT: {rt_score}%")
+            
+            with col3:
+                imdb_votes = item.get('imdb_votes', 'N/A')
+                if isinstance(imdb_votes, int):
+                    imdb_votes = f"{imdb_votes:,}"
+                st.write(f"IMDB: {imdb_votes}")
+            
+            with col4:
+                current_label = item.get('label', '')
+                button_color = "primary" if current_label == "would_watch" else "secondary"
+                button_text = current_label if current_label else "No Label"
+                
+                if current_label == "would_watch":
+                    button_text = "🟦 " + button_text
+                elif current_label == "would_not_watch":
+                    button_text = "🟥 " + button_text
+                
+                if st.button(
+                    button_text,
+                    key=f"label_{item.get('imdb_id')}",
+                    type=button_color,
+                    use_container_width=True
+                ):
+                    if update_label(config, item.get('imdb_id'), current_label):
                         st.cache_data.clear()
                         st.rerun()
-        
-        st.divider()
-    
-    # Full data view in expandable section
-    with st.expander("View Full Data Table"):
-        st.dataframe(df[selected_columns], use_container_width=True, height=400)
-    
-    # Pagination info and controls
-    st.divider()
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col1:
-        if st.session_state.current_page > 0:
-            if st.button("← Previous"):
-                st.session_state.current_page -= 1
-                st.rerun()
-    
-    with col2:
-        total_pages = (pagination.get('total', 0) + page_size - 1) // page_size
-        st.markdown(f"<center>Page {st.session_state.current_page + 1} of {total_pages}</center>", unsafe_allow_html=True)
-    
-    with col3:
-        if pagination.get('next'):
-            if st.button("Next →"):
-                st.session_state.current_page += 1
-                st.rerun()
+            
+            with col5:
+                if st.button(
+                    "✓ Confirm",
+                    key=f"confirm_{item.get('imdb_id')}",
+                    type="primary",
+                    use_container_width=True
+                ):
+                    if mark_as_reviewed(config, item.get('imdb_id')):
+                        st.cache_data.clear()
+                        st.rerun()
+            
+            st.divider()
 
 if __name__ == "__main__":
     main()
