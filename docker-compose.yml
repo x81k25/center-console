@@ -6,13 +6,12 @@ services:
     image: center-console:latest
     container_name: center-console
     ports:
-      - "${CENTER_CONSOLE_PORT_EXTERNAL:-8501}:${CENTER_CONSOLE_PORT_EXTERNAL:-8501}"
+      - "8501:8501"
     environment:
       - REAR_DIFF_HOST=192.168.50.2
       - REAR_DIFF_PORT_EXTERNAL=30812
       - REAR_DIFF_PREFIX=rear-diff
       - CENTER_CONSOLE_API_TIMEOUT=30
-      - CENTER_CONSOLE_PORT_EXTERNAL=${CENTER_CONSOLE_PORT_EXTERNAL:-8501}
     restart: unless-stopped
     networks:
       - app-network
