@@ -65,7 +65,6 @@ REAR_DIFF_HOST=192.168.50.2
 REAR_DIFF_PORT_EXTERNAL=30812
 REAR_DIFF_PREFIX=rear-diff
 CENTER_CONSOLE_API_TIMEOUT=30
-CENTER_CONSOLE_PORT_EXTERNAL=8501
 EOF
 
 # Run the application
@@ -90,7 +89,6 @@ docker run -d \
   -e REAR_DIFF_PORT_EXTERNAL=30812 \
   -e REAR_DIFF_PREFIX=rear-diff \
   -e CENTER_CONSOLE_API_TIMEOUT=30 \
-  -e CENTER_CONSOLE_PORT_EXTERNAL=8501 \
   center-console
 
 # View logs
@@ -116,7 +114,6 @@ For Kubernetes deployment on bare-metal clusters:
 - `REAR_DIFF_PORT_EXTERNAL`: API port number (e.g., `30812`)
 - `REAR_DIFF_PREFIX`: API base path without slashes (e.g., `rear-diff`)
 - `CENTER_CONSOLE_API_TIMEOUT`: Request timeout in seconds (default: 30)
-- `CENTER_CONSOLE_PORT_EXTERNAL`: External port for the Streamlit server (default: 8501)
 
 **Environment Management**
 - Local development: `.env` file with `python-dotenv`
