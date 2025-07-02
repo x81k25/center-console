@@ -1,74 +1,41 @@
-# Rear Diff Training Data Viewer
+# Center Console - Training Backlog Viewer
 
-A Streamlit application for viewing and managing training data from the Rear Differential API. This application provides an interactive interface for browsing, sorting, and updating training data labels used in the Rear Differential system.
+A Streamlit application for viewing and managing the training backlog from the Rear Differential API. This application provides an interactive interface for reviewing unreviewed movies and updating their watch labels.
 
 ## Features
 
-- **Dynamic Data Display**: Automatically generates table columns based on API response structure
-- **Label Management**: Edit labels inline with dropdown selection populated from existing values
-- **Advanced Pagination**: Navigate through large datasets with customizable page sizes (25/50/100 records)
-- **Column Controls**: Sort by any column, filter visible columns, and customize display
-- **Real-time Updates**: Instant feedback for label updates with automatic data refresh
-- **Robust Error Handling**: Comprehensive error messages and recovery guidance
+- **Training Backlog Display**: Shows 20 unreviewed movies sorted by updated_at (descending)
+- **Label Toggle Button**: Flip between "would_watch" (blue) and "would_not_watch" (red) labels
+- **Confirm Button**: Mark items as reviewed without changing the label
+- **Auto-refresh**: Automatically fetches new items after each action
+- **Backlog Status**: Shows "Backlog cleared" when no unreviewed items remain
+- **Real-time Updates**: Instant feedback with automatic data refresh
 - **API Response Caching**: 5-minute TTL cache for improved performance
 
-## Requirements
+## How It Works
 
-### Core Functionality
+1. **Query Training Endpoint**: Fetches 20 unreviewed movies (`reviewed=false`, `media_type=movie`) sorted by `updated_at` descending
+2. **Display Items**: Shows `media_title`, `rt_score`, and `imdb_votes` for each movie
+3. **Label Button**: 
+   - Shows current label value ("would_watch" in blue, "would_not_watch" in red)
+   - Clicking flips the label value and marks item as `human_labeled=true` and `reviewed=true`
+4. **Confirm Button**: Marks item as `reviewed=true` without changing the label
+5. **Auto-refresh**: After any button click, fetches fresh data from the API
+6. **Completion**: Shows "Backlog cleared" when no unreviewed items remain
 
-**Data Display**
-- Fetch training data from `GET /rear-diff/training` endpoint
-- Dynamically generate table columns based on API response structure
-- Display data in interactive table/dataframe with all available fields
-- Implement pagination controls (limit/offset parameters)
+### API Integration
 
-**Label Management**
-- Dynamically populate label dropdown options from existing column values
-- Convert `label` column to editable dropdown widgets
-- Update labels via `PATCH /rear-diff/training/{imdb_id}/label` endpoint
-- Provide visual feedback for successful/failed updates
+**Endpoints Used**:
+- `GET /rear-diff/training` - Fetch training data with filters
+- `PATCH /rear-diff/training/{imdb_id}/label` - Update label and mark as reviewed
+- `PATCH /rear-diff/training/{imdb_id}/reviewed` - Mark as reviewed only
 
-**Streamlit Error Handling**
-- Use `st.error()` for startup failures (missing env vars, API connectivity)
-- Use `st.warning()` for partial failures (individual record updates)
-- Use `st.info()` for loading states and operation feedback
-- Display clear instructions for fixing configuration issues
-
-**Dynamic Features**
-- Column sorting: `st.dataframe()` with sortable=True
-- Column selection: `st.multiselect()` for visible columns
-- Default sort parameter: `sort_by=updated_at&sort_order=desc`
-- Auto-generate filter options from current dataset
-
-**Error Handling**
-- Fail-fast startup with user-friendly error messages in Streamlit UI
-- Environment variable validation with clear instructions
-- API connectivity checks with retry guidance
-- Graceful degradation for partial API failures
-
-### Technical Requirements
-
-**API Integration**
-- Base URL via environment variable (e.g., `http://192.168.50.2:30812/rear-diff/`)
-- Error handling for API failures (500, 404, 400 responses)
-- Request timeout handling
-- API response validation
-- No authentication required (internal network deployment)
-
-**UI/UX**
-- Graceful error display via Streamlit UI for startup/connection failures
-- Human-readable error messages for configuration issues
-- Loading states during API calls
-- Success notifications for label updates
-- Sortable columns (default: updated_at DESC)
-- Column visibility controls for customizable display
-- Pagination navigation (25 records per page)
-
-**Data Handling**
-- Cache API responses (5-minute TTL)
-- Pagination: 25 records per page default
-- Validate IMDB ID format (tt + 7-8 digits) before PATCH
-- Default sort: `updated_at DESC`
+**Query Parameters**:
+- `limit=20` - Number of items to fetch
+- `sort_by=updated_at` - Sort field
+- `sort_order=desc` - Sort direction  
+- `reviewed=false` - Filter unreviewed items
+- `media_type=movie` - Filter movies only
 
 ## Quick Start
 
@@ -95,9 +62,10 @@ uv pip install -r requirements.txt
 # Create .env file for local development
 cat > .env << EOF
 REAR_DIFF_HOST=192.168.50.2
-REAR_DIFF_PORT=30812
-REAR_DIFF_PATH=/rear-diff/
-API_TIMEOUT=30
+REAR_DIFF_PORT_EXTERNAL=30812
+REAR_DIFF_PREFIX=rear-diff
+CENTER_CONSOLE_API_TIMEOUT=30
+CENTER_CONSOLE_PORT_EXTERNAL=8501
 EOF
 
 # Run the application
@@ -119,9 +87,10 @@ docker run -d \
   --name center-console \
   -p 8501:8501 \
   -e REAR_DIFF_HOST=192.168.50.2 \
-  -e REAR_DIFF_PORT=30812 \
-  -e REAR_DIFF_PATH=/rear-diff/ \
-  -e API_TIMEOUT=30 \
+  -e REAR_DIFF_PORT_EXTERNAL=30812 \
+  -e REAR_DIFF_PREFIX=rear-diff \
+  -e CENTER_CONSOLE_API_TIMEOUT=30 \
+  -e CENTER_CONSOLE_PORT_EXTERNAL=8501 \
   center-console
 
 # View logs
@@ -144,9 +113,10 @@ For Kubernetes deployment on bare-metal clusters:
 
 **Environment Variables**
 - `REAR_DIFF_HOST`: API host address (e.g., `192.168.50.2`)
-- `REAR_DIFF_PORT`: API port number (e.g., `30812`)
-- `REAR_DIFF_PATH`: API base path (e.g., `/rear-diff/`)
-- `API_TIMEOUT`: Request timeout in seconds (default: 30)
+- `REAR_DIFF_PORT_EXTERNAL`: API port number (e.g., `30812`)
+- `REAR_DIFF_PREFIX`: API base path without slashes (e.g., `rear-diff`)
+- `CENTER_CONSOLE_API_TIMEOUT`: Request timeout in seconds (default: 30)
+- `CENTER_CONSOLE_PORT_EXTERNAL`: External port for the Streamlit server (default: 8501)
 
 **Environment Management**
 - Local development: `.env` file with `python-dotenv`
