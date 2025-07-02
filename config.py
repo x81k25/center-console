@@ -6,9 +6,10 @@ load_dotenv()
 class Config:
     def __init__(self):
         self.rear_diff_host = os.getenv('REAR_DIFF_HOST')
-        self.rear_diff_port = os.getenv('REAR_DIFF_PORT')
-        self.rear_diff_path = os.getenv('REAR_DIFF_PATH', '/rear-diff/')
-        self.api_timeout = int(os.getenv('API_TIMEOUT', '30'))
+        self.rear_diff_port = os.getenv('REAR_DIFF_PORT_EXTERNAL')
+        self.rear_diff_prefix = os.getenv('REAR_DIFF_PREFIX', 'rear-diff')
+        self.api_timeout = int(os.getenv('CENTER_CONSOLE_API_TIMEOUT', '30'))
+        self.external_port = int(os.getenv('CENTER_CONSOLE_PORT_EXTERNAL', '8501'))
         
         self._validate_config()
         
@@ -19,18 +20,15 @@ class Config:
         if not self.rear_diff_host:
             missing.append('REAR_DIFF_HOST')
         if not self.rear_diff_port:
-            missing.append('REAR_DIFF_PORT')
+            missing.append('REAR_DIFF_PORT_EXTERNAL')
             
         if missing:
             raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
-        
-        if not self.rear_diff_path.endswith('/'):
-            self.rear_diff_path += '/'
     
     @property
     def base_url(self):
         """Construct the base URL for the API"""
-        return f"http://{self.rear_diff_host}:{self.rear_diff_port}{self.rear_diff_path}"
+        return f"http://{self.rear_diff_host}:{self.rear_diff_port}/{self.rear_diff_prefix}/"
     
     @property
     def training_endpoint(self):

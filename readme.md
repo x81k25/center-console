@@ -62,9 +62,10 @@ uv pip install -r requirements.txt
 # Create .env file for local development
 cat > .env << EOF
 REAR_DIFF_HOST=192.168.50.2
-REAR_DIFF_PORT=30812
-REAR_DIFF_PATH=/rear-diff/
-API_TIMEOUT=30
+REAR_DIFF_PORT_EXTERNAL=30812
+REAR_DIFF_PREFIX=rear-diff
+CENTER_CONSOLE_API_TIMEOUT=30
+CENTER_CONSOLE_PORT_EXTERNAL=8501
 EOF
 
 # Run the application
@@ -86,9 +87,10 @@ docker run -d \
   --name center-console \
   -p 8501:8501 \
   -e REAR_DIFF_HOST=192.168.50.2 \
-  -e REAR_DIFF_PORT=30812 \
-  -e REAR_DIFF_PATH=/rear-diff/ \
-  -e API_TIMEOUT=30 \
+  -e REAR_DIFF_PORT_EXTERNAL=30812 \
+  -e REAR_DIFF_PREFIX=rear-diff \
+  -e CENTER_CONSOLE_API_TIMEOUT=30 \
+  -e CENTER_CONSOLE_PORT_EXTERNAL=8501 \
   center-console
 
 # View logs
@@ -111,9 +113,10 @@ For Kubernetes deployment on bare-metal clusters:
 
 **Environment Variables**
 - `REAR_DIFF_HOST`: API host address (e.g., `192.168.50.2`)
-- `REAR_DIFF_PORT`: API port number (e.g., `30812`)
-- `REAR_DIFF_PATH`: API base path (e.g., `/rear-diff/`)
-- `API_TIMEOUT`: Request timeout in seconds (default: 30)
+- `REAR_DIFF_PORT_EXTERNAL`: API port number (e.g., `30812`)
+- `REAR_DIFF_PREFIX`: API base path without slashes (e.g., `rear-diff`)
+- `CENTER_CONSOLE_API_TIMEOUT`: Request timeout in seconds (default: 30)
+- `CENTER_CONSOLE_PORT_EXTERNAL`: External port for the Streamlit server (default: 8501)
 
 **Environment Management**
 - Local development: `.env` file with `python-dotenv`
