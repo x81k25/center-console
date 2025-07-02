@@ -11,7 +11,6 @@ class Config:
         self.rear_diff_port = os.getenv('REAR_DIFF_PORT_EXTERNAL')
         self.rear_diff_prefix = os.getenv('REAR_DIFF_PREFIX', 'rear-diff')
         self.api_timeout = int(os.getenv('CENTER_CONSOLE_API_TIMEOUT', '30'))
-        self.external_port = int(os.getenv('CENTER_CONSOLE_PORT_EXTERNAL', '8501'))
         
         self._validate_config()
         
