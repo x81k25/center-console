@@ -2,247 +2,237 @@ import streamlit as st
 import requests
 import pandas as pd
 from config import Config
-import re
-from datetime import datetime, timedelta
+from typing import Dict, List, Optional
+import time
 
-st.set_page_config(
-    page_title="Rear Diff Training Data Viewer",
-    page_icon="🚗",
-    layout="wide"
-)
+st.set_page_config(page_title="Training Backlog", layout="wide")
 
-@st.cache_data(ttl=300)  # Cache for 5 minutes
-def fetch_training_data(base_url, limit=25, offset=0, sort_by="updated_at", sort_order="desc"):
+# Custom CSS for button styling
+st.markdown("""
+<style>
+/* Red buttons for would_not_watch */
+div[data-testid="stButton"] > button[kind="secondary"] {
+    background-color: #ff4b4b !important;
+    color: white !important;
+    border-color: #ff4b4b !important;
+}
+
+div[data-testid="stButton"] > button[kind="secondary"]:hover {
+    background-color: #ff2626 !important;
+    border-color: #ff2626 !important;
+}
+
+/* Neutral/default buttons (no type specified) - transparent background */
+div[data-testid="stButton"] > button:not([kind]) {
+    background-color: transparent !important;
+    color: #262730 !important;
+    border: 1px solid #d4d4d4 !important;
+}
+
+div[data-testid="stButton"] > button:not([kind]):hover {
+    background-color: transparent !important;
+    border-color: #999999 !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+@st.cache_data(ttl=300)
+def fetch_training_data(_config: Config, page: int = 1, limit: int = 20) -> Optional[Dict]:
     """Fetch training data from the API with caching"""
-    params = {
-        "limit": limit,
-        "offset": offset,
-        "sort_by": sort_by,
-        "sort_order": sort_order
-    }
-    
     try:
+        params = {
+            "page": page,
+            "limit": limit,
+            "sort_by": "updated_at",
+            "sort_order": "desc",
+            "reviewed": "false",
+            "media_type": "movie"
+        }
+        
         response = requests.get(
-            f"{base_url}training",
+            _config.training_endpoint,
             params=params,
-            timeout=st.session_state.config.api_timeout
+            timeout=_config.api_timeout
         )
         response.raise_for_status()
         return response.json()
-    except requests.RequestException as e:
-        st.error(f"Failed to fetch data from API: {str(e)}")
+    except Exception as e:
+        st.error(f"Failed to fetch training data: {str(e)}")
         return None
 
-def validate_imdb_id(imdb_id):
-    """Validate IMDB ID format (tt + 7-8 digits)"""
-    return bool(re.match(r'^tt\d{7,8}$', imdb_id))
-
-def update_label(imdb_id, new_label):
-    """Update label for a specific IMDB ID"""
-    if not validate_imdb_id(imdb_id):
-        st.warning(f"Invalid IMDB ID format: {imdb_id}")
-        return False
-    
-    endpoint = st.session_state.config.get_label_update_endpoint(imdb_id)
-    
+def update_label(_config: Config, imdb_id: str, current_label: str) -> bool:
+    """Update the label for a training item"""
     try:
+        new_label = "would_not_watch" if current_label == "would_watch" else "would_watch"
+        
+        payload = {
+            "imdb_id": imdb_id,
+            "label": new_label,
+            "human_labeled": True,
+            "reviewed": True
+        }
+        
         response = requests.patch(
-            endpoint,
-            json={"imdb_id": imdb_id, "label": new_label},
-            timeout=st.session_state.config.api_timeout
+            _config.get_label_update_endpoint(imdb_id),
+            json=payload,
+            timeout=_config.api_timeout
         )
         response.raise_for_status()
-        result = response.json()
-        
-        if result.get("success"):
-            return True
-        else:
-            st.warning(f"Failed to update label: {result.get('message', 'Unknown error')}")
-            return False
-    except requests.RequestException as e:
-        st.warning(f"Failed to update label for {imdb_id}: {str(e)}")
-        return False
-
-def get_unique_labels():
-    """Get valid label values for the API"""
-    # Return the valid API labels (excluding None/null values)
-    return ['would_watch', 'would_not_watch']
-
-def initialize_app():
-    """Initialize the application and check connectivity"""
-    try:
-        config = Config()
-        st.session_state.config = config
-        
-        # Test API connectivity
-        st.info("Checking API connectivity...")
-        health_response = requests.get(config.health_endpoint, timeout=5)
-        health_response.raise_for_status()
-        
         return True
-    except ValueError as e:
-        st.error(f"Configuration Error: {str(e)}")
-        st.info("Please set the following environment variables:")
-        st.code("""
-export REAR_DIFF_HOST=192.168.50.2
-export REAR_DIFF_PORT=30812
-export REAR_DIFF_PATH=/rear-diff/
-export API_TIMEOUT=30
-        """)
+    except Exception as e:
+        st.error(f"Failed to update label for {imdb_id}: {str(e)}")
         return False
-    except requests.RequestException as e:
-        st.error(f"API Connection Error: Could not connect to {config.base_url}")
-        st.info(f"Error details: {str(e)}")
-        st.info("Please verify the API is running and accessible.")
+
+def mark_as_reviewed(_config: Config, imdb_id: str) -> bool:
+    """Mark a training item as reviewed"""
+    try:
+        endpoint = f"{_config.base_url}training/{imdb_id}/reviewed"
+        payload = {"imdb_id": imdb_id, "reviewed": True}
+        
+        response = requests.patch(
+            endpoint,
+            json=payload,
+            timeout=_config.api_timeout
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        st.error(f"Failed to mark {imdb_id} as reviewed: {str(e)}")
         return False
 
 def main():
-    st.title("🚗 Rear Diff Training Data Viewer")
+    """Main application function"""
+    try:
+        config = Config()
+    except ValueError as e:
+        st.error(f"Configuration Error: {str(e)}")
+        st.info("Please set the required environment variables: REAR_DIFF_HOST, REAR_DIFF_PORT")
+        return
     
-    # Initialize app
-    if 'initialized' not in st.session_state:
-        st.session_state.initialized = initialize_app()
+    st.title("Training Backlog")
     
-    if not st.session_state.initialized:
-        st.stop()
+    if st.button("Refresh Data", type="secondary"):
+        st.cache_data.clear()
+        st.rerun()
     
-    # Pagination controls
-    col1, col2, col3, col4 = st.columns([1, 1, 1, 3])
-    
-    with col1:
-        page_size = st.selectbox("Records per page", [25, 50, 100], index=0)
-    
-    with col2:
-        if 'current_page' not in st.session_state:
-            st.session_state.current_page = 0
-        page_number = st.number_input("Page", min_value=1, value=st.session_state.current_page + 1)
-        st.session_state.current_page = page_number - 1
-    
-    with col3:
-        sort_by = st.selectbox("Sort by", ["updated_at", "created_at", "imdb_id", "label"], index=0)
-    
-    with col4:
-        sort_order = st.selectbox("Sort order", ["desc", "asc"], index=0)
-    
-    # Fetch data
-    offset = st.session_state.current_page * page_size
-    data_response = fetch_training_data(
-        st.session_state.config.base_url,
-        limit=page_size,
-        offset=offset,
-        sort_by=sort_by,
-        sort_order=sort_order
-    )
-    
-    if not data_response:
-        st.stop()
-    
-    # Process data
-    data = data_response.get("data", [])
-    pagination = data_response.get("pagination", {})
+    data = fetch_training_data(config)
     
     if not data:
-        st.warning("No data available")
-        st.stop()
+        return
     
-    # Create DataFrame
-    df = pd.DataFrame(data)
+    items = data.get("data", [])
     
-    # Get unique labels for dropdown
-    all_labels = get_unique_labels()
+    if not items:
+        st.success("✅ Backlog cleared")
+        return
     
-    # Column visibility controls
-    st.subheader("Display Options")
-    available_columns = df.columns.tolist()
-    selected_columns = st.multiselect(
-        "Select columns to display",
-        available_columns,
-        default=available_columns
-    )
     
-    # Display data with editable labels
-    st.subheader(f"Training Data (Total: {pagination.get('total', 0)} records)")
-    
-    # Create a container for the data editor
-    data_container = st.container()
-    
-    # Track label updates
-    if 'label_updates' not in st.session_state:
-        st.session_state.label_updates = {}
-    
-    # Display each row with editable label dropdown
-    for idx, row in df.iterrows():
-        cols = st.columns([3, 2, 2, 2, 1])
-        
-        # Display key fields
-        with cols[0]:
-            st.text(f"IMDB: {row.get('imdb_id', 'N/A')}")
-            st.text(f"Title: {row.get('media_title', 'N/A')}")
-        
-        with cols[1]:
-            st.text(f"Type: {row.get('media_type', 'N/A')}")
-            st.text(f"Year: {row.get('release_year', 'N/A')}")
-        
-        with cols[2]:
-            current_label = row.get('label')
-            # Handle None/null labels
-            if current_label is None:
-                current_label = ''
-            label_key = f"label_{row['imdb_id']}"
+    for idx, item in enumerate(items):
+        with st.container():
+            # Main row with basic info and buttons
+            col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 2, 2])
             
-            # Create dropdown with unique labels (None/empty shows as first option)
-            new_label = st.selectbox(
-                "Label",
-                options=['(No Label)'] + all_labels,
-                index=all_labels.index(current_label) + 1 if current_label in all_labels else 0,
-                key=label_key
-            )
+            with col1:
+                st.write(f"**{item.get('media_title', 'Unknown')}**")
             
-            # Track if label changed (ignore "(No Label)" selection)
-            if new_label != current_label and new_label != "(No Label)":
-                st.session_state.label_updates[row['imdb_id']] = new_label
-        
-        with cols[3]:
-            st.text(f"Human Labeled: {row.get('human_labeled', False)}")
-            if 'updated_at' in row:
-                st.text(f"Updated: {row['updated_at'][:10]}")
-        
-        with cols[4]:
-            if row['imdb_id'] in st.session_state.label_updates:
-                if st.button("Save", key=f"save_{row['imdb_id']}"):
-                    new_label = st.session_state.label_updates[row['imdb_id']]
-                    if update_label(row['imdb_id'], new_label):
-                        st.success(f"Updated label for {row['imdb_id']}")
-                        del st.session_state.label_updates[row['imdb_id']]
-                        # Clear cache to refresh data
+            with col2:
+                rt_score = item.get('rt_score')
+                if rt_score is None:
+                    rt_score_display = "NULL"
+                else:
+                    rt_score_display = f"{rt_score}%"
+                st.write(f"RT: {rt_score_display}")
+            
+            with col3:
+                imdb_votes = item.get('imdb_votes')
+                if imdb_votes is None:
+                    imdb_votes_display = "NULL"
+                elif isinstance(imdb_votes, int):
+                    imdb_votes_display = f"{imdb_votes:,}"
+                else:
+                    imdb_votes_display = str(imdb_votes)
+                st.write(f"IMDB: {imdb_votes_display}")
+            
+            with col4:
+                current_label = item.get('label', '')
+                
+                # Set button color based on label
+                if current_label == "would_watch":
+                    button_color = "primary"  # Blue background
+                    button_text = "would_watch"
+                elif current_label == "would_not_watch":
+                    button_color = "secondary"  # Red-ish background  
+                    button_text = "would_not_watch"
+                else:
+                    button_color = "secondary"
+                    button_text = "No Label"
+                
+                if st.button(
+                    button_text,
+                    key=f"label_{item.get('imdb_id')}",
+                    type=button_color,
+                    use_container_width=True
+                ):
+                    if update_label(config, item.get('imdb_id'), current_label):
                         st.cache_data.clear()
                         st.rerun()
-        
-        st.divider()
-    
-    # Full data view in expandable section
-    with st.expander("View Full Data Table"):
-        st.dataframe(df[selected_columns], use_container_width=True, height=400)
-    
-    # Pagination info and controls
-    st.divider()
-    col1, col2, col3 = st.columns([1, 2, 1])
-    
-    with col1:
-        if st.session_state.current_page > 0:
-            if st.button("← Previous"):
-                st.session_state.current_page -= 1
-                st.rerun()
-    
-    with col2:
-        total_pages = (pagination.get('total', 0) + page_size - 1) // page_size
-        st.markdown(f"<center>Page {st.session_state.current_page + 1} of {total_pages}</center>", unsafe_allow_html=True)
-    
-    with col3:
-        if pagination.get('next'):
-            if st.button("Next →"):
-                st.session_state.current_page += 1
-                st.rerun()
+            
+            with col5:
+                if st.button(
+                    "confirm",
+                    key=f"confirm_{item.get('imdb_id')}",
+                    use_container_width=True
+                ):
+                    if mark_as_reviewed(config, item.get('imdb_id')):
+                        st.cache_data.clear()
+                        st.rerun()
+            
+            # Expandable details section
+            with st.expander(f"📋 Details for {item.get('media_title', 'Unknown')}", expanded=False):
+                detail_col1, detail_col2 = st.columns(2)
+                
+                with detail_col1:
+                    st.write("**Basic Info:**")
+                    st.write(f"• **IMDB ID:** {item.get('imdb_id', 'NULL')}")
+                    st.write(f"• **TMDB ID:** {item.get('tmdb_id', 'NULL')}")
+                    st.write(f"• **Release Year:** {item.get('release_year', 'NULL')}")
+                    st.write(f"• **Runtime:** {item.get('runtime', 'NULL')} min")
+                    st.write(f"• **Original Language:** {item.get('original_language', 'NULL')}")
+                    st.write(f"• **Origin Country:** {item.get('origin_country', 'NULL')}")
+                    
+                    st.write("**Status:**")
+                    st.write(f"• **Current Label:** {item.get('label', 'NULL')}")
+                    st.write(f"• **Human Labeled:** {item.get('human_labeled', 'NULL')}")
+                    st.write(f"• **Reviewed:** {item.get('reviewed', 'NULL')}")
+                    st.write(f"• **Anomalous:** {item.get('anomalous', 'NULL')}")
+                
+                with detail_col2:
+                    st.write("**Ratings & Scores:**")
+                    st.write(f"• **RT Score:** {item.get('rt_score', 'NULL')}")
+                    st.write(f"• **IMDB Rating:** {item.get('imdb_rating', 'NULL')}")
+                    st.write(f"• **IMDB Votes:** {item.get('imdb_votes', 'NULL')}")
+                    st.write(f"• **TMDB Rating:** {item.get('tmdb_rating', 'NULL')}")
+                    st.write(f"• **TMDB Votes:** {item.get('tmdb_votes', 'NULL')}")
+                    st.write(f"• **Metascore:** {item.get('metascore', 'NULL')}")
+                    
+                    st.write("**Financial:**")
+                    st.write(f"• **Budget:** ${item.get('budget', 'NULL'):,}" if item.get('budget') else "• **Budget:** NULL")
+                    st.write(f"• **Revenue:** ${item.get('revenue', 'NULL'):,}" if item.get('revenue') else "• **Revenue:** NULL")
+                
+                st.write("**Additional Info:**")
+                st.write(f"• **Genres:** {', '.join(item.get('genre', [])) if item.get('genre') else 'NULL'}")
+                st.write(f"• **Production Status:** {item.get('production_status', 'NULL')}")
+                st.write(f"• **Tagline:** {item.get('tagline', 'NULL')}")
+                
+                if item.get('overview'):
+                    st.write("**Overview:**")
+                    st.write(item.get('overview'))
+                
+                st.write("**Timestamps:**")
+                st.write(f"• **Created:** {item.get('created_at', 'NULL')}")
+                st.write(f"• **Updated:** {item.get('updated_at', 'NULL')}")
+            
+            st.divider()
 
 if __name__ == "__main__":
     main()
