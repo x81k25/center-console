@@ -1,7 +1,9 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env file if it exists (for local development)
+# In K8s, environment variables are injected directly
+load_dotenv(override=False)
 
 class Config:
     def __init__(self):
