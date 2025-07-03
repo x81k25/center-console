@@ -57,9 +57,14 @@ def fetch_training_data(_config: Config, page: int = 1, limit: int = 20) -> Opti
         st.error(f"Failed to fetch training data: {str(e)}")
         return None
 
-def update_label(_config: Config, imdb_id: str, new_label: str) -> bool:
+def update_label(_config: Config, imdb_id: str, new_label: str, current_label: str, current_human_labeled: bool) -> bool:
     """Update the label for a training item"""
     try:
+        # If new label matches current label, use reviewed endpoint
+        if new_label == current_label:
+            return mark_as_reviewed(_config, imdb_id)
+        
+        # If labels differ, use label endpoint with human_labeled=true
         payload = {
             "imdb_id": imdb_id,
             "label": new_label,
@@ -155,6 +160,7 @@ def main():
                 st.write(f"Genre: {genre_display}")
             
             current_label = item.get('label', '')
+            current_human_labeled = item.get('human_labeled', False)
             
             with col5:
                 # Would Watch button - blue when active, transparent when inactive
@@ -164,7 +170,7 @@ def main():
                     button_kwargs["type"] = button_type
                 
                 if st.button("would_watch", key=f"would_watch_{item.get('imdb_id')}", **button_kwargs):
-                    if update_label(config, item.get('imdb_id'), "would_watch"):
+                    if update_label(config, item.get('imdb_id'), "would_watch", current_label, current_human_labeled):
                         st.cache_data.clear()
                         st.rerun()
             
@@ -176,7 +182,7 @@ def main():
                     button_kwargs["type"] = button_type
                 
                 if st.button("would_not", key=f"would_not_watch_{item.get('imdb_id')}", **button_kwargs):
-                    if update_label(config, item.get('imdb_id'), "would_not_watch"):
+                    if update_label(config, item.get('imdb_id'), "would_not_watch", current_label, current_human_labeled):
                         st.cache_data.clear()
                         st.rerun()
             
