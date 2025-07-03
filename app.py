@@ -10,28 +10,25 @@ st.set_page_config(page_title="Training Backlog", layout="wide")
 # Custom CSS for button styling
 st.markdown("""
 <style>
-/* Red buttons for would_not_watch */
-div[data-testid="stButton"] > button[kind="secondary"] {
-    background-color: #ff4b4b !important;
+/* Blue buttons for would_watch when active */
+div[data-testid="stButton"] > button[kind="primary"] {
+    background-color: #1f77b4 !important;
     color: white !important;
-    border-color: #ff4b4b !important;
+    border-color: #1f77b4 !important;
 }
 
-div[data-testid="stButton"] > button[kind="secondary"]:hover {
-    background-color: #ff2626 !important;
-    border-color: #ff2626 !important;
+/* Red buttons for would_not_watch when active */
+div[data-testid="stButton"] > button[kind="tertiary"] {
+    background-color: #d62728 !important;
+    color: white !important;
+    border-color: #d62728 !important;
 }
 
-/* Neutral/default buttons (no type specified) - transparent background */
+/* Transparent buttons when inactive */
 div[data-testid="stButton"] > button:not([kind]) {
     background-color: transparent !important;
     color: #262730 !important;
-    border: 1px solid #d4d4d4 !important;
-}
-
-div[data-testid="stButton"] > button:not([kind]):hover {
-    background-color: transparent !important;
-    border-color: #999999 !important;
+    border: 1px solid #d0d0d0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -60,11 +57,9 @@ def fetch_training_data(_config: Config, page: int = 1, limit: int = 20) -> Opti
         st.error(f"Failed to fetch training data: {str(e)}")
         return None
 
-def update_label(_config: Config, imdb_id: str, current_label: str) -> bool:
+def update_label(_config: Config, imdb_id: str, new_label: str) -> bool:
     """Update the label for a training item"""
     try:
-        new_label = "would_not_watch" if current_label == "would_watch" else "would_watch"
-        
         payload = {
             "imdb_id": imdb_id,
             "label": new_label,
@@ -111,10 +106,6 @@ def main():
     
     st.title("Training Backlog")
     
-    if st.button("Refresh Data", type="secondary"):
-        st.cache_data.clear()
-        st.rerun()
-    
     data = fetch_training_data(config)
     
     if not data:
@@ -130,7 +121,7 @@ def main():
     for idx, item in enumerate(items):
         with st.container():
             # Main row with basic info and buttons
-            col1, col2, col3, col4, col5 = st.columns([3, 1, 1, 2, 2])
+            col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 2, 1.5, 1.5])
             
             with col1:
                 st.write(f"**{item.get('media_title', 'Unknown')}**")
@@ -154,36 +145,38 @@ def main():
                 st.write(f"IMDB: {imdb_votes_display}")
             
             with col4:
-                current_label = item.get('label', '')
-                
-                # Set button color based on label
-                if current_label == "would_watch":
-                    button_color = "primary"  # Blue background
-                    button_text = "would_watch"
-                elif current_label == "would_not_watch":
-                    button_color = "secondary"  # Red-ish background  
-                    button_text = "would_not_watch"
+                genres = item.get('genre', [])
+                if genres and isinstance(genres, list):
+                    genre_display = ", ".join(genres[:2])  # Show first 2 genres
+                    if len(genres) > 2:
+                        genre_display += "..."
                 else:
-                    button_color = "secondary"
-                    button_text = "No Label"
+                    genre_display = "NULL"
+                st.write(f"Genre: {genre_display}")
+            
+            current_label = item.get('label', '')
+            
+            with col5:
+                # Would Watch button - blue when active, transparent when inactive
+                button_type = "primary" if current_label == "would_watch" else None
+                button_kwargs = {"use_container_width": True}
+                if button_type:
+                    button_kwargs["type"] = button_type
                 
-                if st.button(
-                    button_text,
-                    key=f"label_{item.get('imdb_id')}",
-                    type=button_color,
-                    use_container_width=True
-                ):
-                    if update_label(config, item.get('imdb_id'), current_label):
+                if st.button("would_watch", key=f"would_watch_{item.get('imdb_id')}", **button_kwargs):
+                    if update_label(config, item.get('imdb_id'), "would_watch"):
                         st.cache_data.clear()
                         st.rerun()
             
-            with col5:
-                if st.button(
-                    "confirm",
-                    key=f"confirm_{item.get('imdb_id')}",
-                    use_container_width=True
-                ):
-                    if mark_as_reviewed(config, item.get('imdb_id')):
+            with col6:
+                # Would Not Watch button - red when active, transparent when inactive
+                button_type = "tertiary" if current_label == "would_not_watch" else None
+                button_kwargs = {"use_container_width": True}
+                if button_type:
+                    button_kwargs["type"] = button_type
+                
+                if st.button("would_not", key=f"would_not_watch_{item.get('imdb_id')}", **button_kwargs):
+                    if update_label(config, item.get('imdb_id'), "would_not_watch"):
                         st.cache_data.clear()
                         st.rerun()
             
