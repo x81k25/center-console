@@ -60,13 +60,15 @@ def fetch_training_data(_config: Config, page: int = 1, limit: int = 20) -> Opti
 def update_label(_config: Config, imdb_id: str, new_label: str, current_label: str, current_human_labeled: bool) -> bool:
     """Update the label for a training item"""
     try:
-        # If new label matches current label, preserve human_labeled value
-        human_labeled_value = current_human_labeled if new_label == current_label else True
+        # If new label matches current label, use reviewed endpoint
+        if new_label == current_label:
+            return mark_as_reviewed(_config, imdb_id)
         
+        # If labels differ, use label endpoint with human_labeled=true
         payload = {
             "imdb_id": imdb_id,
             "label": new_label,
-            "human_labeled": human_labeled_value,
+            "human_labeled": True,
             "reviewed": True
         }
         
