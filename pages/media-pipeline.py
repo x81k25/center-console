@@ -104,7 +104,7 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
         st.markdown('<div class="search-result">', unsafe_allow_html=True)
         
         # Display basic info
-        col1, col2, col3 = st.columns([2, 1, 1])
+        col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
         
         with col1:
             st.write(f"**{item.get('media_title', 'Unknown')}**")
@@ -114,18 +114,26 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
         
         with col2:
             current_pipeline = item.get('pipeline_status', '')
-            st.write(f"**Pipeline Status:** {current_pipeline}")
-            
-            current_error = item.get('error_status', '')
-            if current_error:
-                st.write(f"**Error Status:** {current_error}")
+            st.write(f"**Pipeline Status:**")
+            st.write(f"{current_pipeline if current_pipeline else 'NULL'}")
         
         with col3:
             current_rejection = item.get('rejection_status', '')
-            st.write(f"**Rejection Status:** {current_rejection}")
-            
-            if item.get('error_condition'):
-                st.write(f"**Error Condition:** {item.get('error_condition')}")
+            st.write(f"**Rejection Status:**")
+            st.write(f"{current_rejection if current_rejection else 'NULL'}")
+        
+        with col4:
+            rejection_reason = item.get('rejection_reason', '')
+            st.write(f"**Rejection Reason:**")
+            st.write(f"{rejection_reason if rejection_reason else 'NULL'}")
+        
+        with col5:
+            error_status = item.get('error_status', '')
+            error_condition = item.get('error_condition', '')
+            st.write(f"**Error Status:**")
+            st.write(f"{error_status if error_status else 'NULL'}")
+            if error_condition:
+                st.caption(f"Condition: {error_condition}")
         
         # Edit form
         with st.form(f"edit_form_{item.get('hash', 'unknown')}"):
