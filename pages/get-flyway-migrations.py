@@ -99,6 +99,11 @@ def main():
     
     migrations = data.get("data", [])
     
+    # Sort migrations client-side if sorting by version to ensure proper numerical order
+    if sort_by == "version" and migrations:
+        reverse = (sort_order == "desc")
+        migrations.sort(key=lambda x: float(x.get('version', '0')), reverse=reverse)
+    
     # Display metadata
     st.info(f"Total migrations: {len(migrations)}")
     
