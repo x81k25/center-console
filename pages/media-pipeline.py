@@ -122,11 +122,27 @@ def update_pipeline_status(_config: Config, hash_id: str, updates: Dict[str, Any
         payload = {k: v for k, v in updates.items() if v is not None}
         payload['hash'] = hash_id  # Required field according to API schema
         
+        # Log the full API call details
+        endpoint_url = _config.get_media_pipeline_endpoint(hash_id)
+        print(f"=== API CALL DEBUG ===")
+        print(f"URL: {endpoint_url}")
+        print(f"Method: PATCH")
+        print(f"Payload: {payload}")
+        print(f"Hash ID: {hash_id}")
+        print(f"Original updates: {updates}")
+        st.write(f"**DEBUG: Making API call to:** {endpoint_url}")
+        st.write(f"**DEBUG: Payload:** {payload}")
+        
         response = requests.patch(
-            _config.get_media_pipeline_endpoint(hash_id),
+            endpoint_url,
             json=payload,
             timeout=_config.api_timeout
         )
+        
+        print(f"Response status: {response.status_code}")
+        print(f"Response text: {response.text}")
+        st.write(f"**DEBUG: Response status:** {response.status_code}")
+        st.write(f"**DEBUG: Response text:** {response.text}")
         
         # Check for specific permission error
         if response.status_code == 400:
@@ -233,6 +249,18 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
             submitted = st.form_submit_button("Update Pipeline", type="primary")
             
             if submitted:
+                print(f"=== FORM SUBMITTED ===")
+                print(f"Hash: {item.get('hash')}")
+                print(f"Pipeline status selected: '{new_pipeline_status}'")
+                print(f"Error status selected: '{new_error_status}'")
+                print(f"Rejection status selected: '{new_rejection_status}'")
+                
+                st.write("**🔥 FORM WAS SUBMITTED! 🔥**")
+                st.write(f"**Selected values:**")
+                st.write(f"- Pipeline: '{new_pipeline_status}'")
+                st.write(f"- Error: '{new_error_status}'")
+                st.write(f"- Rejection: '{new_rejection_status}'")
+                
                 updates = {}
                 if new_pipeline_status and new_pipeline_status != "":
                     updates['pipeline_status'] = new_pipeline_status
