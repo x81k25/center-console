@@ -234,22 +234,26 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
             
             if submitted:
                 updates = {}
-                if new_pipeline_status:
+                if new_pipeline_status and new_pipeline_status != "":
                     updates['pipeline_status'] = new_pipeline_status
-                if new_error_status:
+                if new_error_status and new_error_status != "":
                     # Convert string to boolean for error_status
                     updates['error_status'] = new_error_status == 'true'
-                if new_rejection_status:
+                if new_rejection_status and new_rejection_status != "":
                     updates['rejection_status'] = new_rejection_status
                 
+                # Debug info
+                st.info(f"Debug: Form submitted with updates: {updates}")
+                
                 if updates:
+                    st.info(f"Debug: Calling update_pipeline_status for hash: {item.get('hash')}")
                     if update_pipeline_status(config, item.get('hash'), updates):
                         st.success(f"✅ Successfully updated pipeline status for {item.get('media_title', 'Unknown')}")
                         st.cache_data.clear()
                         time.sleep(1)
                         st.rerun()
                 else:
-                    st.warning("No updates specified")
+                    st.warning("No updates specified - please select at least one field to update")
         
         # Expandable details
         with st.expander(f"📋 Full Details for {item.get('media_title', 'Unknown')}", expanded=False):
