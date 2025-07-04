@@ -30,6 +30,17 @@ div[data-testid="stButton"] > button:not([kind]) {
     color: #262730 !important;
     border: 1px solid #d0d0d0 !important;
 }
+
+/* Custom progress bar colors */
+/* RT Score - Crimson */
+div[data-testid="stColumn"]:nth-child(2) .stProgress > div > div > div > div {
+    background-color: #DC143C !important;
+}
+
+/* IMDB Votes - IMDB Yellow */
+div[data-testid="stColumn"]:nth-child(3) .stProgress > div > div > div > div {
+    background-color: #F5C518 !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -126,7 +137,7 @@ def main():
     for idx, item in enumerate(items):
         with st.container():
             # Main row with basic info and buttons
-            col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 2, 1.5, 1.5])
+            col1, col2, col3, col4, col5, col6, col7, col8 = st.columns([3, 1, 1, 0.8, 0.6, 1.5, 1.2, 1.2])
             
             with col1:
                 st.write(f"**{item.get('media_title', 'Unknown')}**")
@@ -134,22 +145,44 @@ def main():
             with col2:
                 rt_score = item.get('rt_score')
                 if rt_score is None:
-                    rt_score_display = "NULL"
+                    st.write("RT: NULL")
                 else:
-                    rt_score_display = f"{rt_score}%"
-                st.write(f"RT: {rt_score_display}")
+                    # Show RT score with progress bar
+                    st.write("**RT Score**")
+                    st.progress(rt_score / 100.0)
+                    st.caption(f"{rt_score}%")
             
             with col3:
                 imdb_votes = item.get('imdb_votes')
                 if imdb_votes is None:
-                    imdb_votes_display = "NULL"
-                elif isinstance(imdb_votes, int):
-                    imdb_votes_display = f"{imdb_votes:,}"
+                    st.write("IMDB: NULL")
                 else:
-                    imdb_votes_display = str(imdb_votes)
-                st.write(f"IMDB: {imdb_votes_display}")
+                    # Show IMDB votes as progress bar with 100k cap
+                    if isinstance(imdb_votes, int):
+                        st.write("**IMDB Votes**")
+                        # Cap at 100k for progress bar
+                        progress_value = min(imdb_votes / 100000.0, 1.0)
+                        st.progress(progress_value)
+                        # Format display
+                        if imdb_votes >= 1000000:
+                            votes_display = f"{imdb_votes/1000000:.1f}M"
+                        elif imdb_votes >= 1000:
+                            votes_display = f"{imdb_votes/1000:.0f}K"
+                        else:
+                            votes_display = str(imdb_votes)
+                        st.caption(votes_display)
+                    else:
+                        st.write(f"IMDB: {imdb_votes}")
             
             with col4:
+                release_year = item.get('release_year')
+                st.write(f"Year: {release_year if release_year else 'NULL'}")
+            
+            with col5:
+                lang = item.get('original_language')
+                st.write(f"Lang: {lang.upper() if lang else 'NULL'}")
+            
+            with col6:
                 genres = item.get('genre', [])
                 if genres and isinstance(genres, list):
                     genre_display = ", ".join(genres[:2])  # Show first 2 genres
@@ -162,7 +195,7 @@ def main():
             current_label = item.get('label', '')
             current_human_labeled = item.get('human_labeled', False)
             
-            with col5:
+            with col7:
                 # Would Watch button - blue when active, transparent when inactive
                 button_type = "primary" if current_label == "would_watch" else None
                 button_kwargs = {"use_container_width": True}
@@ -174,7 +207,7 @@ def main():
                         st.cache_data.clear()
                         st.rerun()
             
-            with col6:
+            with col8:
                 # Would Not Watch button - red when active, transparent when inactive
                 button_type = "tertiary" if current_label == "would_not_watch" else None
                 button_kwargs = {"use_container_width": True}
