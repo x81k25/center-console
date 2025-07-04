@@ -44,3 +44,8 @@ class Config:
     def get_label_update_endpoint(self, imdb_id):
         """Get the label update endpoint for a specific IMDB ID"""
         return f"{self.base_url}training/{imdb_id}/label"
+    
+    @property
+    def media_endpoint(self):
+        """Get the media data endpoint"""
+        return f"{self.base_url}media/"
