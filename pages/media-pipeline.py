@@ -83,7 +83,7 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
     with st.container():
         
         # Display basic info
-        col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
+        col1, col2, col3, col4, col5, col6 = st.columns([2, 1, 1, 1, 1, 1])
         
         with col1:
             st.write(f"**{item.get('media_title', 'Unknown')}**")
@@ -107,12 +107,14 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
             st.write(f"{rejection_reason if rejection_reason else 'NULL'}")
         
         with col5:
-            error_status = item.get('error_status', '')
-            error_condition = item.get('error_condition', '')
+            error_status = item.get('error_status', False)  # Default to False for boolean
             st.write(f"**Error Status:**")
-            st.write(f"{error_status if error_status else 'NULL'}")
-            if error_condition:
-                st.caption(f"Condition: {error_condition}")
+            st.write(f"{str(error_status).lower()}")  # Display as lowercase true/false
+        
+        with col6:
+            error_condition = item.get('error_condition', '')
+            st.write(f"**Error Condition:**")
+            st.write(f"{error_condition if error_condition else 'NULL'}")
         
         # Edit form
         with st.form(f"edit_form_{item.get('hash', 'unknown')}"):
