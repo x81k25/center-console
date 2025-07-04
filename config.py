@@ -48,4 +48,4 @@ class Config:
     @property
     def media_endpoint(self):
         """Get the media data endpoint"""
-        return f"{self.base_url}media"
+        return f"{self.base_url}media/"
