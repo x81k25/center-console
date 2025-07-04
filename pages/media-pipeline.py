@@ -124,14 +124,27 @@ def update_pipeline_status(_config: Config, hash_id: str, updates: Dict[str, Any
         
         # Log the full API call details
         endpoint_url = _config.get_media_pipeline_endpoint(hash_id)
-        print(f"=== API CALL DEBUG ===")
-        print(f"URL: {endpoint_url}")
-        print(f"Method: PATCH")
-        print(f"Payload: {payload}")
-        print(f"Hash ID: {hash_id}")
-        print(f"Original updates: {updates}")
-        st.write(f"**DEBUG: Making API call to:** {endpoint_url}")
-        st.write(f"**DEBUG: Payload:** {payload}")
+        
+        # Display comprehensive debugging information
+        st.markdown("### 🔍 API Call Debug Information")
+        st.markdown(f"**🌐 Endpoint URL:** `{endpoint_url}`")
+        st.markdown(f"**📋 HTTP Method:** `PATCH`")
+        st.markdown(f"**🏷️ Hash ID:** `{hash_id}`")
+        st.markdown(f"**📤 Original Updates:** `{updates}`")
+        st.markdown(f"**📦 Final Payload:** `{payload}`")
+        st.markdown(f"**⏰ Timeout:** `{_config.api_timeout} seconds`")
+        
+        # Show curl equivalent for manual testing
+        curl_command = f"""curl -X PATCH "{endpoint_url}" \\
+  -H "Content-Type: application/json" \\
+  -d '{payload}' \\
+  --max-time {_config.api_timeout}"""
+        
+        st.markdown("**🔧 Equivalent curl command:**")
+        st.code(curl_command, language="bash")
+        
+        st.markdown("---")
+        st.markdown("### 📡 Making API Request...")
         
         response = requests.patch(
             endpoint_url,
@@ -139,10 +152,21 @@ def update_pipeline_status(_config: Config, hash_id: str, updates: Dict[str, Any
             timeout=_config.api_timeout
         )
         
-        print(f"Response status: {response.status_code}")
-        print(f"Response text: {response.text}")
-        st.write(f"**DEBUG: Response status:** {response.status_code}")
-        st.write(f"**DEBUG: Response text:** {response.text}")
+        # Display response details
+        st.markdown("### 📥 API Response Details")
+        st.markdown(f"**📊 Status Code:** `{response.status_code}`")
+        st.markdown(f"**📝 Status Text:** `{response.reason}`")
+        st.markdown(f"**🔗 Response URL:** `{response.url}`")
+        st.markdown(f"**📋 Response Headers:**")
+        for header, value in response.headers.items():
+            st.markdown(f"  - `{header}: {value}`")
+        
+        st.markdown(f"**📄 Response Body:**")
+        try:
+            response_json = response.json()
+            st.json(response_json)
+        except:
+            st.code(response.text)
         
         # Check for specific permission error
         if response.status_code == 400:
@@ -158,7 +182,8 @@ def update_pipeline_status(_config: Config, hash_id: str, updates: Dict[str, Any
         if not result.get('success'):
             st.error(f"❌ API Error: {result.get('error', 'Unknown error')}")
             return False
-            
+        
+        st.success("✅ API call completed successfully!")
         return True
     except requests.exceptions.RequestException as e:
         st.error(f"❌ Failed to update pipeline status: {str(e)}")
@@ -249,17 +274,13 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
             submitted = st.form_submit_button("Update Pipeline", type="primary")
             
             if submitted:
-                print(f"=== FORM SUBMITTED ===")
-                print(f"Hash: {item.get('hash')}")
-                print(f"Pipeline status selected: '{new_pipeline_status}'")
-                print(f"Error status selected: '{new_error_status}'")
-                print(f"Rejection status selected: '{new_rejection_status}'")
-                
-                st.write("**🔥 FORM WAS SUBMITTED! 🔥**")
-                st.write(f"**Selected values:**")
-                st.write(f"- Pipeline: '{new_pipeline_status}'")
-                st.write(f"- Error: '{new_error_status}'")
-                st.write(f"- Rejection: '{new_rejection_status}'")
+                st.markdown("## 🚀 Form Submission Debug")
+                st.markdown(f"**📋 Item Hash:** `{item.get('hash')}`")
+                st.markdown(f"**🎬 Media Title:** `{item.get('media_title', 'Unknown')}`")
+                st.markdown("**📝 Form Values Captured:**")
+                st.markdown(f"- **Pipeline Status:** `'{new_pipeline_status}'`")
+                st.markdown(f"- **Error Status:** `'{new_error_status}'`")
+                st.markdown(f"- **Rejection Status:** `'{new_rejection_status}'`")
                 
                 updates = {}
                 if new_pipeline_status and new_pipeline_status != "":
@@ -270,18 +291,19 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
                 if new_rejection_status and new_rejection_status != "":
                     updates['rejection_status'] = new_rejection_status
                 
-                # Debug info
-                st.info(f"Debug: Form submitted with updates: {updates}")
+                st.markdown("**🔧 Processed Updates:**")
+                st.json(updates)
                 
                 if updates:
-                    st.info(f"Debug: Calling update_pipeline_status for hash: {item.get('hash')}")
+                    st.markdown("**🔄 Calling API Update Function...**")
                     if update_pipeline_status(config, item.get('hash'), updates):
                         st.success(f"✅ Successfully updated pipeline status for {item.get('media_title', 'Unknown')}")
+                        st.markdown("**🔄 Clearing cache and rerunning...**")
                         st.cache_data.clear()
                         time.sleep(1)
                         st.rerun()
                 else:
-                    st.warning("No updates specified - please select at least one field to update")
+                    st.warning("⚠️ No updates specified - please select at least one field to update")
         
         # Expandable details
         with st.expander(f"📋 Full Details for {item.get('media_title', 'Unknown')}", expanded=False):
