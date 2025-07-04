@@ -49,3 +49,8 @@ class Config:
     def media_endpoint(self):
         """Get the media data endpoint"""
         return f"{self.base_url}media/"
+    
+    @property
+    def flyway_endpoint(self):
+        """Get the flyway history endpoint"""
+        return f"{self.base_url}flyway"
