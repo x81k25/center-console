@@ -14,15 +14,11 @@ st.set_page_config(
 # Custom CSS for styling
 st.markdown("""
 <style>
-/* RT Score - Crimson */
-div[data-testid="stColumn"]:nth-child(2) .stProgress > div > div > div > div {
-    background-color: #DC143C !important;
-}
-
-/* IMDB Votes - IMDB Yellow */
-div[data-testid="stColumn"]:nth-child(3) .stProgress > div > div > div > div {
-    background-color: #F5C518 !important;
-}
+/* Status indicators */
+.status-ingested { color: #28a745; font-weight: bold; }
+.status-processed { color: #007bff; font-weight: bold; }
+.status-failed { color: #dc3545; font-weight: bold; }
+.status-pending { color: #ffc107; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -86,42 +82,33 @@ def main():
     for idx, item in enumerate(items):
         with st.container():
             # Main row with basic info
-            col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 0.8, 0.6, 2])
+            col1, col2, col3, col4, col5, col6, col7 = st.columns([3, 1, 1, 0.8, 0.8, 1, 1])
             
             with col1:
                 st.write(f"**{item.get('media_title', 'Unknown')}**")
+                # Show season/episode info for TV shows
+                if item.get('media_type') == 'tv_show' and item.get('season') and item.get('episode'):
+                    st.caption(f"S{item.get('season')}E{item.get('episode')}")
             
             with col2:
-                rt_score = item.get('rt_score')
-                if rt_score is None:
-                    st.write("RT: NULL")
+                resolution = item.get('resolution')
+                if resolution:
+                    st.write(f"**{resolution}**")
+                    st.caption("Quality")
                 else:
-                    # Show RT score with progress bar
-                    st.write("**RT Score**")
-                    st.progress(rt_score / 100.0)
-                    st.caption(f"{rt_score}%")
+                    st.write("Quality: NULL")
             
             with col3:
-                imdb_votes = item.get('imdb_votes')
-                if imdb_votes is None:
-                    st.write("IMDB: NULL")
+                codec = item.get('video_codec')
+                upload_type = item.get('upload_type')
+                if codec and upload_type:
+                    st.write(f"**{upload_type}**")
+                    st.caption(f"{codec}")
+                elif upload_type:
+                    st.write(f"**{upload_type}**")
+                    st.caption("Source")
                 else:
-                    # Show IMDB votes as progress bar with 100k cap
-                    if isinstance(imdb_votes, int):
-                        st.write("**IMDB Votes**")
-                        # Cap at 100k for progress bar
-                        progress_value = min(imdb_votes / 100000.0, 1.0)
-                        st.progress(progress_value)
-                        # Format display
-                        if imdb_votes >= 1000000:
-                            votes_display = f"{imdb_votes/1000000:.1f}M"
-                        elif imdb_votes >= 1000:
-                            votes_display = f"{imdb_votes/1000:.0f}K"
-                        else:
-                            votes_display = str(imdb_votes)
-                        st.caption(votes_display)
-                    else:
-                        st.write(f"IMDB: {imdb_votes}")
+                    st.write("Source: NULL")
             
             with col4:
                 release_year = item.get('release_year')
@@ -132,28 +119,34 @@ def main():
                 st.write(f"Lang: {lang.upper() if lang else 'NULL'}")
             
             with col6:
-                genres = item.get('genre', [])
-                if genres and isinstance(genres, list):
-                    genre_display = ", ".join(genres[:2])  # Show first 2 genres
-                    if len(genres) > 2:
-                        genre_display += "..."
-                else:
-                    genre_display = "NULL"
-                st.write(f"Genre: {genre_display}")
+                # Show pipeline status
+                pipeline_status = item.get('pipeline_status', 'unknown')
+                status_color = {
+                    'ingested': '#28a745',
+                    'processed': '#007bff', 
+                    'failed': '#dc3545',
+                    'pending': '#ffc107'
+                }.get(pipeline_status, '#6c757d')
+                st.markdown(f'<span style="color: {status_color}; font-weight: bold;">Status: {pipeline_status}</span>', unsafe_allow_html=True)
             
-            # Show label status if available
-            if item.get('label'):
-                label_col1, label_col2, label_col3 = st.columns([1, 1, 8])
-                with label_col1:
-                    label = item.get('label', '')
-                    label_color = "#1f77b4" if label == "would_watch" else "#d62728" if label == "would_not_watch" else "#808080"
-                    st.markdown(f'<span style="color: {label_color}; font-weight: bold;">Label: {label}</span>', unsafe_allow_html=True)
-                with label_col2:
-                    if item.get('human_labeled'):
-                        st.success("Human Labeled")
-                with label_col3:
-                    if item.get('reviewed'):
-                        st.info("Reviewed")
+            with col7:
+                uploader = item.get('uploader')
+                if uploader:
+                    st.write(f"**{uploader}**")
+                    st.caption("Uploader")
+                else:
+                    st.write("Uploader: NULL")
+            
+            # Show error status if applicable
+            if item.get('error_status') or item.get('rejection_status') != 'unfiltered':
+                error_col1, error_col2, error_col3 = st.columns([2, 2, 6])
+                with error_col1:
+                    if item.get('error_status'):
+                        st.error(f"Error: {item.get('error_condition', 'Unknown')}")
+                with error_col2:
+                    rejection_status = item.get('rejection_status')
+                    if rejection_status and rejection_status != 'unfiltered':
+                        st.warning(f"Rejected: {item.get('rejection_reason', 'Unknown')}")
             
             # Expandable details section
             with st.expander(f"📋 Details for {item.get('media_title', 'Unknown')}", expanded=False):
@@ -161,6 +154,7 @@ def main():
                 
                 with detail_col1:
                     st.write("**Basic Info:**")
+                    st.write(f"• **Hash:** {item.get('hash', 'NULL')}")
                     st.write(f"• **IMDB ID:** {item.get('imdb_id', 'NULL')}")
                     st.write(f"• **TMDB ID:** {item.get('tmdb_id', 'NULL')}")
                     st.write(f"• **Media Type:** {item.get('media_type', 'NULL')}")
@@ -169,24 +163,39 @@ def main():
                     st.write(f"• **Original Language:** {item.get('original_language', 'NULL')}")
                     st.write(f"• **Origin Country:** {item.get('origin_country', 'NULL')}")
                     
-                    st.write("**Status:**")
-                    st.write(f"• **Current Label:** {item.get('label', 'NULL')}")
-                    st.write(f"• **Human Labeled:** {item.get('human_labeled', 'NULL')}")
-                    st.write(f"• **Reviewed:** {item.get('reviewed', 'NULL')}")
-                    st.write(f"• **Anomalous:** {item.get('anomalous', 'NULL')}")
+                    st.write("**Pipeline Status:**")
+                    st.write(f"• **Status:** {item.get('pipeline_status', 'NULL')}")
+                    st.write(f"• **Error Status:** {item.get('error_status', 'NULL')}")
+                    st.write(f"• **Error Condition:** {item.get('error_condition', 'NULL')}")
+                    st.write(f"• **Rejection Status:** {item.get('rejection_status', 'NULL')}")
+                    st.write(f"• **Rejection Reason:** {item.get('rejection_reason', 'NULL')}")
                 
                 with detail_col2:
+                    st.write("**Technical Details:**")
+                    st.write(f"• **Resolution:** {item.get('resolution', 'NULL')}")
+                    st.write(f"• **Video Codec:** {item.get('video_codec', 'NULL')}")
+                    st.write(f"• **Audio Codec:** {item.get('audio_codec', 'NULL')}")
+                    st.write(f"• **Upload Type:** {item.get('upload_type', 'NULL')}")
+                    st.write(f"• **Uploader:** {item.get('uploader', 'NULL')}")
+                    st.write(f"• **RSS Source:** {item.get('rss_source', 'NULL')}")
+                    
                     st.write("**Ratings & Scores:**")
-                    st.write(f"• **RT Score:** {item.get('rt_score', 'NULL')}")
                     st.write(f"• **IMDB Rating:** {item.get('imdb_rating', 'NULL')}")
                     st.write(f"• **IMDB Votes:** {item.get('imdb_votes', 'NULL')}")
                     st.write(f"• **TMDB Rating:** {item.get('tmdb_rating', 'NULL')}")
                     st.write(f"• **TMDB Votes:** {item.get('tmdb_votes', 'NULL')}")
+                    st.write(f"• **RT Score:** {item.get('rt_score', 'NULL')}")
                     st.write(f"• **Metascore:** {item.get('metascore', 'NULL')}")
-                    
-                    st.write("**Financial:**")
-                    st.write(f"• **Budget:** ${item.get('budget', 'NULL'):,}" if item.get('budget') else "• **Budget:** NULL")
-                    st.write(f"• **Revenue:** ${item.get('revenue', 'NULL'):,}" if item.get('revenue') else "• **Revenue:** NULL")
+                
+                st.write("**File Paths:**")
+                st.write(f"• **Original Title:** {item.get('original_title', 'NULL')}")
+                st.write(f"• **Parent Path:** {item.get('parent_path', 'NULL')}")
+                st.write(f"• **Target Path:** {item.get('target_path', 'NULL')}")
+                st.write(f"• **Original Path:** {item.get('original_path', 'NULL')}")
+                
+                if item.get('original_link'):
+                    st.write("**Original Link:**")
+                    st.code(item.get('original_link'), language=None)
                 
                 st.write("**Additional Info:**")
                 st.write(f"• **Genres:** {', '.join(item.get('genre', [])) if item.get('genre') else 'NULL'}")
