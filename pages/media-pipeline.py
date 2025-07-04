@@ -17,26 +17,6 @@ st.markdown("""
 .stTextInput > div > div > input {
     font-family: 'Courier New', monospace;
 }
-.search-result {
-    border: 1px solid #ddd;
-    border-radius: 5px;
-    padding: 10px;
-    margin-bottom: 10px;
-}
-.success-message {
-    background-color: #d4edda;
-    color: #155724;
-    padding: 10px;
-    border-radius: 5px;
-    margin: 10px 0;
-}
-.error-message {
-    background-color: #f8d7da;
-    color: #721c24;
-    padding: 10px;
-    border-radius: 5px;
-    margin: 10px 0;
-}
 </style>
 """, unsafe_allow_html=True)
 
@@ -101,7 +81,6 @@ def update_pipeline_status(_config: Config, hash_id: str, updates: Dict[str, Any
 def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config):
     """Display a single media item with edit capabilities"""
     with st.container():
-        st.markdown('<div class="search-result">', unsafe_allow_html=True)
         
         # Display basic info
         col1, col2, col3, col4, col5 = st.columns([2, 1, 1, 1, 1])
@@ -223,8 +202,6 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
                 st.write("**Timestamps:**")
                 st.write(f"• **Created:** {item.get('created_at', 'NULL')}")
                 st.write(f"• **Updated:** {item.get('updated_at', 'NULL')}")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
 
 def main():
     """Main application function"""
@@ -277,7 +254,7 @@ def main():
     # Display results
     if search_results:
         items = search_results.get("data", [])
-        total_items = search_results.get("total", 0)
+        total_items = len(items)  # Use actual length of items array
         
         if items:
             st.success(f"Found {total_items} item(s)")
