@@ -74,49 +74,12 @@ def search_media_by_title(_config: Config, title: str) -> Optional[Dict]:
 
 @st.cache_data(ttl=300)
 def get_pipeline_options(_config: Config) -> Dict[str, List[str]]:
-    """Get all possible pipeline status values from the API"""
-    try:
-        # Get a sample of media items to extract possible values
-        response = requests.get(
-            _config.media_endpoint,
-            params={"limit": 100},
-            timeout=_config.api_timeout
-        )
-        response.raise_for_status()
-        data = response.json()
-        
-        items = data.get("data", [])
-        
-        # Extract unique values for each patchable field
-        pipeline_statuses = set()
-        error_statuses = set()
-        rejection_statuses = set()
-        
-        for item in items:
-            if item.get('pipeline_status'):
-                pipeline_statuses.add(item['pipeline_status'])
-            if item.get('error_status'):
-                error_statuses.add(item['error_status'])
-            if item.get('rejection_status'):
-                rejection_statuses.add(item['rejection_status'])
-        
-        # Add common values that might not be in the sample
-        pipeline_statuses.update(['pending', 'ingested', 'processed', 'failed'])
-        error_statuses.update(['none', 'failed_download', 'failed_process'])
-        rejection_statuses.update(['unfiltered', 'filtered', 'rejected'])
-        
-        return {
-            'pipeline_status': sorted(list(pipeline_statuses)),
-            'error_status': sorted(list(error_statuses)),
-            'rejection_status': sorted(list(rejection_statuses))
-        }
-    except Exception as e:
-        st.error(f"Failed to get pipeline options: {str(e)}")
-        return {
-            'pipeline_status': ['pending', 'ingested', 'processed', 'failed'],
-            'error_status': ['none', 'failed_download', 'failed_process'],
-            'rejection_status': ['unfiltered', 'filtered', 'rejected']
-        }
+    """Get all possible pipeline status values - using actual database values"""
+    return {
+        'pipeline_status': ['ingested', 'rejected', 'downloading', 'complete'],
+        'error_status': ['true', 'false'],
+        'rejection_status': ['unfiltered', 'accepted', 'rejected']
+    }
 
 def update_pipeline_status(_config: Config, hash_id: str, updates: Dict[str, Any]) -> bool:
     """Update pipeline status for a media item"""
@@ -168,7 +131,7 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
         with st.form(f"edit_form_{item.get('hash', 'unknown')}"):
             st.write("**Update Pipeline Status:**")
             
-            form_col1, form_col2, form_col3, form_col4 = st.columns(4)
+            form_col1, form_col2, form_col3 = st.columns(3)
             
             with form_col1:
                 new_pipeline_status = st.selectbox(
@@ -183,7 +146,8 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
                     "Error Status",
                     options=[""] + options['error_status'],
                     index=0,
-                    key=f"error_{item.get('hash', 'unknown')}"
+                    key=f"error_{item.get('hash', 'unknown')}",
+                    help="Boolean field: true or false"
                 )
             
             with form_col3:
@@ -194,13 +158,6 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
                     key=f"rejection_{item.get('hash', 'unknown')}"
                 )
             
-            with form_col4:
-                error_condition = st.text_input(
-                    "Error Condition",
-                    value="",
-                    key=f"condition_{item.get('hash', 'unknown')}"
-                )
-            
             submitted = st.form_submit_button("Update Pipeline", type="primary")
             
             if submitted:
@@ -208,11 +165,10 @@ def display_media_item(item: Dict, options: Dict[str, List[str]], config: Config
                 if new_pipeline_status:
                     updates['pipeline_status'] = new_pipeline_status
                 if new_error_status:
-                    updates['error_status'] = new_error_status
+                    # Convert string to boolean for error_status
+                    updates['error_status'] = new_error_status == 'true'
                 if new_rejection_status:
                     updates['rejection_status'] = new_rejection_status
-                if error_condition:
-                    updates['error_condition'] = error_condition
                 
                 if updates:
                     if update_pipeline_status(config, item.get('hash'), updates):
@@ -339,10 +295,9 @@ def main():
         - Click "Update Pipeline" to apply changes
         
         **Available Fields:**
-        - **Pipeline Status**: Current processing state (pending, ingested, processed, failed)
-        - **Error Status**: Error condition if processing failed
-        - **Rejection Status**: Whether item was filtered or rejected
-        - **Error Condition**: Specific error message or condition
+        - **Pipeline Status**: Current processing state (ingested, rejected, downloading, complete)
+        - **Error Status**: Boolean field indicating if there was an error (true/false)
+        - **Rejection Status**: Item filtering status (unfiltered, accepted, rejected)
         
         **Tips:**
         - Use the expandable details section to see full item information
