@@ -43,7 +43,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=5)
 def search_media_by_hash(_config: Config, hash_value: str) -> Optional[Dict]:
     """Search media by hash value"""
     try:
@@ -59,7 +59,7 @@ def search_media_by_hash(_config: Config, hash_value: str) -> Optional[Dict]:
         st.error(f"Failed to search by hash: {str(e)}")
         return None
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=5)
 def search_media_by_title(_config: Config, title: str) -> Optional[Dict]:
     """Search media by title"""
     try:
@@ -137,11 +137,9 @@ def update_pipeline_status(_config: Config, hash_id: str, updates: Dict[str, Any
         
         response.raise_for_status()
         
-        # Parse response to show success/error message
+        # Parse response to check success/error
         result = response.json()
-        if result.get('success'):
-            st.success(f"✅ {result.get('message', 'Update successful')}")
-        else:
+        if not result.get('success'):
             st.error(f"❌ API Error: {result.get('error', 'Unknown error')}")
             return False
             
