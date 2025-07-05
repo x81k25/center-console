@@ -45,6 +45,10 @@ class Config:
         """Get the label update endpoint for a specific IMDB ID"""
         return f"{self.base_url}training/{imdb_id}/label"
     
+    def get_media_pipeline_endpoint(self, hash_id):
+        """Get the media pipeline patch endpoint for a specific hash ID"""
+        return f"{self.base_url}media/{hash_id}/pipeline"
+    
     @property
     def media_endpoint(self):
         """Get the media data endpoint"""
