@@ -189,11 +189,9 @@ def main():
                 
                 origin_country = item.get('origin_country')
                 if origin_country and isinstance(origin_country, list):
-                    if len(origin_country) > 1:
-                        primary_flag = country_code_to_flag(origin_country[0])
-                        country_display = f"{primary_flag}+{len(origin_country)-1}"
-                    else:
-                        country_display = country_code_to_flag(origin_country[0])
+                    # Show all flags for multiple countries
+                    flags = [country_code_to_flag(country) for country in origin_country]
+                    country_display = ''.join(flags)
                 elif origin_country:
                     country_display = country_code_to_flag(str(origin_country))
                 else:
