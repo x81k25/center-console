@@ -221,7 +221,7 @@ def main():
         st.error(f"Configuration Error: {str(e)}")
         return
     
-    st.title("🔧 Media Pipeline Management")
+    st.title("media-pipeline")
     
     # Initialize session state
     if 'selected_item' not in st.session_state:

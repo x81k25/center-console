@@ -53,7 +53,7 @@ def main():
         st.info("Please set the required environment variables: REAR_DIFF_HOST, REAR_DIFF_PORT_EXTERNAL")
         return
     
-    st.title("🎬 Media Library")
+    st.title("get-media")
     
     # Add pagination controls
     col1, col2, col3 = st.columns([1, 1, 8])

@@ -75,7 +75,7 @@ def main():
         st.info("Please set the required environment variables: REAR_DIFF_HOST, REAR_DIFF_PORT_EXTERNAL")
         return
     
-    st.title("🗃️ Flyway Migrations History")
+    st.title("get-flyway-migrations")
     
     # Add sorting controls
     col1, col2, col3 = st.columns([2, 2, 6])

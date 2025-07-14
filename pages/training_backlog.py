@@ -120,7 +120,7 @@ def main():
         st.info("Please set the required environment variables: REAR_DIFF_HOST, REAR_DIFF_PORT")
         return
     
-    st.title("Training Backlog")
+    st.title("training-backlog")
     
     data = fetch_training_data(config)
     
