@@ -108,7 +108,7 @@ Select a page from the sidebar to get started, or click the links below:
 - Comprehensive debugging and API call visibility
 - Color-coded status indicators with icons
 
-### 📚 [Training Backlog](training_backlog)
+### 📚 [Training Backlog](training-backlog)
 **Movie Review Interface**
 - Review unreviewed movies from the training dataset
 - Binary classification: `would_watch` vs `would_not_watch`
@@ -116,7 +116,7 @@ Select a page from the sidebar to get started, or click the links below:
 - Expandable details with comprehensive movie information
 - Auto-refresh after each review decision
 
-### 🎬 [Media Library](get_media)
+### 🎬 [Media Library](get-media)
 **Media Collection Browser**
 - Browse complete media collection with pagination
 - View detailed metadata for movies and TV shows

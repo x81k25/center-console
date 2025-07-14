@@ -9,7 +9,7 @@ from typing import Dict, List, Optional
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-st.set_page_config(page_title="Media Pipeline", layout="wide")
+st.set_page_config(page_title="media-pipeline", layout="wide")
 
 def make_patch_call(config: Config, hash_id: str, updates: Dict):
     """Make a PATCH call to update pipeline status"""
@@ -221,7 +221,7 @@ def main():
         st.error(f"Configuration Error: {str(e)}")
         return
     
-    st.title("🔧 Media Pipeline Management")
+    st.title("media-pipeline")
     
     # Initialize session state
     if 'selected_item' not in st.session_state:

@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import time
 
 st.set_page_config(
-    page_title="Media Library",
+    page_title="get-media",
     page_icon="🎬",
     layout="wide"
 )
@@ -53,7 +53,7 @@ def main():
         st.info("Please set the required environment variables: REAR_DIFF_HOST, REAR_DIFF_PORT_EXTERNAL")
         return
     
-    st.title("🎬 Media Library")
+    st.title("get-media")
     
     # Add pagination controls
     col1, col2, col3 = st.columns([1, 1, 8])

@@ -5,7 +5,7 @@ from config import Config
 from typing import Dict, List, Optional
 import time
 
-st.set_page_config(page_title="Training Backlog", layout="wide")
+st.set_page_config(page_title="training-backlog", layout="wide")
 
 # Custom CSS for button styling
 st.markdown("""
@@ -120,7 +120,7 @@ def main():
         st.info("Please set the required environment variables: REAR_DIFF_HOST, REAR_DIFF_PORT")
         return
     
-    st.title("Training Backlog")
+    st.title("training-backlog")
     
     data = fetch_training_data(config)
     
@@ -145,21 +145,20 @@ def main():
             with col2:
                 rt_score = item.get('rt_score')
                 if rt_score is None:
-                    st.write("RT: NULL")
+                    st.progress(0.0)
+                    st.caption("RT: NULL")
                 else:
-                    # Show RT score with progress bar
-                    st.write("**RT Score**")
                     st.progress(rt_score / 100.0)
-                    st.caption(f"{rt_score}%")
+                    st.caption(f"RT: {rt_score}%")
             
             with col3:
                 imdb_votes = item.get('imdb_votes')
                 if imdb_votes is None:
-                    st.write("IMDB: NULL")
+                    st.progress(0.0)
+                    st.caption("IMDB: NULL")
                 else:
                     # Show IMDB votes as progress bar with 100k cap
                     if isinstance(imdb_votes, int):
-                        st.write("**IMDB Votes**")
                         # Cap at 100k for progress bar
                         progress_value = min(imdb_votes / 100000.0, 1.0)
                         st.progress(progress_value)
@@ -170,24 +169,89 @@ def main():
                             votes_display = f"{imdb_votes/1000:.0f}K"
                         else:
                             votes_display = str(imdb_votes)
-                        st.caption(votes_display)
+                        st.caption(f"IMDB: {votes_display}")
                     else:
-                        st.write(f"IMDB: {imdb_votes}")
+                        st.progress(0.0)
+                        st.caption(f"IMDB: {imdb_votes}")
             
             with col4:
                 release_year = item.get('release_year')
-                st.write(f"Year: {release_year if release_year else 'NULL'}")
+                if release_year is None:
+                    st.progress(0.0)
+                    st.caption("Year: NULL")
+                else:
+                    # Create 1D scatter plot with year range 1950-current year
+                    import datetime
+                    min_year = 1950
+                    max_year = datetime.datetime.now().year
+                    
+                    if isinstance(release_year, int):
+                        # Clamp years before 1950 to 1950
+                        clamped_year = max(release_year, min_year)
+                        progress_value = (clamped_year - min_year) / (max_year - min_year)
+                        st.progress(progress_value)
+                        st.caption(f"Year: {release_year}")
+                    else:
+                        st.progress(0.0)
+                        st.caption(f"Year: {release_year}")
             
             with col5:
-                lang = item.get('original_language')
-                st.write(f"Lang: {lang.upper() if lang else 'NULL'}")
+                def country_code_to_flag(country_code):
+                    """Convert 2-letter country code to flag emoji"""
+                    if not country_code or len(country_code) != 2:
+                        return country_code
+                    # Convert to uppercase and then to flag emoji
+                    # Each letter gets converted to its regional indicator symbol
+                    return ''.join(chr(ord(c) + 0x1F1A5) for c in country_code.upper())
+                
+                origin_country = item.get('origin_country')
+                if origin_country and isinstance(origin_country, list):
+                    # Show all flags for multiple countries
+                    flags = [country_code_to_flag(country) for country in origin_country]
+                    country_display = ''.join(flags)
+                elif origin_country:
+                    country_display = country_code_to_flag(str(origin_country))
+                else:
+                    country_display = 'NULL'
+                st.write(f"Country: {country_display}")
             
             with col6:
+                def genre_to_emoji(genre):
+                    """Convert genre string to emoji"""
+                    genre_map = {
+                        "Action": "💥",
+                        "Action & Adventure": "💥⛰️",
+                        "Adventure": "⛰️",
+                        "Animation": "✏️",
+                        "Comedy": "🤣",
+                        "Crime": "👮‍♂️",
+                        "Documentary": "📚",
+                        "Drama": "💔",
+                        "Family": "🏠",
+                        "Fantasy": "🦄",
+                        "History": "🏛️",
+                        "Horror": "😱",
+                        "Kids": "👶",
+                        "Music": "🎵",
+                        "Mystery": "🔍",
+                        "News": "📰",
+                        "Reality": "🎪",
+                        "Romance": "💕",
+                        "Science Fiction": "🚀",
+                        "Sci-Fi & Fantasy": "🚀🦄",
+                        "Talk": "💬",
+                        "Thriller": "⚡",
+                        "TV Movie": "📺",
+                        "War": "⚔️",
+                        "Western": "🤠"
+                    }
+                    return genre_map.get(genre, "🎬")  # Default movie emoji for unknown genres
+                
                 genres = item.get('genre', [])
                 if genres and isinstance(genres, list):
-                    genre_display = ", ".join(genres[:2])  # Show first 2 genres
-                    if len(genres) > 2:
-                        genre_display += "..."
+                    # Show all genre emojis
+                    genre_emojis = [genre_to_emoji(genre) for genre in genres]
+                    genre_display = "".join(genre_emojis)
                 else:
                     genre_display = "NULL"
                 st.write(f"Genre: {genre_display}")
