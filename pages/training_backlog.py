@@ -176,7 +176,24 @@ def main():
             
             with col4:
                 release_year = item.get('release_year')
-                st.write(f"Year: {release_year if release_year else 'NULL'}")
+                if release_year is None:
+                    st.progress(0.0)
+                    st.caption("Year: NULL")
+                else:
+                    # Create 1D scatter plot with year range 1950-current year
+                    import datetime
+                    min_year = 1950
+                    max_year = datetime.datetime.now().year
+                    
+                    if isinstance(release_year, int):
+                        # Clamp years before 1950 to 1950
+                        clamped_year = max(release_year, min_year)
+                        progress_value = (clamped_year - min_year) / (max_year - min_year)
+                        st.progress(progress_value)
+                        st.caption(f"Year: {release_year}")
+                    else:
+                        st.progress(0.0)
+                        st.caption(f"Year: {release_year}")
             
             with col5:
                 def country_code_to_flag(country_code):
