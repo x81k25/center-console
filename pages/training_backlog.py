@@ -179,8 +179,26 @@ def main():
                 st.write(f"Year: {release_year if release_year else 'NULL'}")
             
             with col5:
-                lang = item.get('original_language')
-                st.write(f"Lang: {lang.upper() if lang else 'NULL'}")
+                def country_code_to_flag(country_code):
+                    """Convert 2-letter country code to flag emoji"""
+                    if not country_code or len(country_code) != 2:
+                        return country_code
+                    # Convert to uppercase and then to flag emoji
+                    # Each letter gets converted to its regional indicator symbol
+                    return ''.join(chr(ord(c) + 0x1F1A5) for c in country_code.upper())
+                
+                origin_country = item.get('origin_country')
+                if origin_country and isinstance(origin_country, list):
+                    if len(origin_country) > 1:
+                        primary_flag = country_code_to_flag(origin_country[0])
+                        country_display = f"{primary_flag}+{len(origin_country)-1}"
+                    else:
+                        country_display = country_code_to_flag(origin_country[0])
+                elif origin_country:
+                    country_display = country_code_to_flag(str(origin_country))
+                else:
+                    country_display = 'NULL'
+                st.write(f"Country: {country_display}")
             
             with col6:
                 genres = item.get('genre', [])
