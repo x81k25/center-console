@@ -216,11 +216,42 @@ def main():
                 st.write(f"Country: {country_display}")
             
             with col6:
+                def genre_to_emoji(genre):
+                    """Convert genre string to emoji"""
+                    genre_map = {
+                        "Action": "💥",
+                        "Action & Adventure": "💥⛰️",
+                        "Adventure": "⛰️",
+                        "Animation": "✏️",
+                        "Comedy": "🤣",
+                        "Crime": "👮‍♂️",
+                        "Documentary": "📚",
+                        "Drama": "💔",
+                        "Family": "🏠",
+                        "Fantasy": "🦄",
+                        "History": "🏛️",
+                        "Horror": "😱",
+                        "Kids": "👶",
+                        "Music": "🎵",
+                        "Mystery": "🔍",
+                        "News": "📰",
+                        "Reality": "🎪",
+                        "Romance": "💕",
+                        "Science Fiction": "🚀",
+                        "Sci-Fi & Fantasy": "🚀🦄",
+                        "Talk": "💬",
+                        "Thriller": "⚡",
+                        "TV Movie": "📺",
+                        "War": "⚔️",
+                        "Western": "🤠"
+                    }
+                    return genre_map.get(genre, "🎬")  # Default movie emoji for unknown genres
+                
                 genres = item.get('genre', [])
                 if genres and isinstance(genres, list):
-                    genre_display = ", ".join(genres[:2])  # Show first 2 genres
-                    if len(genres) > 2:
-                        genre_display += "..."
+                    # Show all genre emojis
+                    genre_emojis = [genre_to_emoji(genre) for genre in genres]
+                    genre_display = "".join(genre_emojis)
                 else:
                     genre_display = "NULL"
                 st.write(f"Genre: {genre_display}")
