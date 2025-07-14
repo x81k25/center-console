@@ -5,7 +5,7 @@ from config import Config
 from typing import Dict, List, Optional
 import time
 
-st.set_page_config(page_title="Training Backlog", layout="wide")
+st.set_page_config(page_title="training-backlog", layout="wide")
 
 # Custom CSS for button styling
 st.markdown("""
@@ -145,21 +145,20 @@ def main():
             with col2:
                 rt_score = item.get('rt_score')
                 if rt_score is None:
-                    st.write("RT: NULL")
+                    st.progress(0.0)
+                    st.caption("RT: NULL")
                 else:
-                    # Show RT score with progress bar
-                    st.write("**RT Score**")
                     st.progress(rt_score / 100.0)
-                    st.caption(f"{rt_score}%")
+                    st.caption(f"RT: {rt_score}%")
             
             with col3:
                 imdb_votes = item.get('imdb_votes')
                 if imdb_votes is None:
-                    st.write("IMDB: NULL")
+                    st.progress(0.0)
+                    st.caption("IMDB: NULL")
                 else:
                     # Show IMDB votes as progress bar with 100k cap
                     if isinstance(imdb_votes, int):
-                        st.write("**IMDB Votes**")
                         # Cap at 100k for progress bar
                         progress_value = min(imdb_votes / 100000.0, 1.0)
                         st.progress(progress_value)
@@ -170,9 +169,10 @@ def main():
                             votes_display = f"{imdb_votes/1000:.0f}K"
                         else:
                             votes_display = str(imdb_votes)
-                        st.caption(votes_display)
+                        st.caption(f"IMDB: {votes_display}")
                     else:
-                        st.write(f"IMDB: {imdb_votes}")
+                        st.progress(0.0)
+                        st.caption(f"IMDB: {imdb_votes}")
             
             with col4:
                 release_year = item.get('release_year')
