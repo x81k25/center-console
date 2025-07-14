@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import time
 
 st.set_page_config(
-    page_title="Flyway Migrations",
+    page_title="get-flyway-migrations",
     page_icon="🗃️",
     layout="wide"
 )

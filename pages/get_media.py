@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import time
 
 st.set_page_config(
-    page_title="Media Library",
+    page_title="get-media",
     page_icon="🎬",
     layout="wide"
 )
