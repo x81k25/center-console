@@ -226,16 +226,31 @@ def main():
             index=0
         )
         
-        # Sort toggle
-        sort_ascending = st.toggle(
-            "Sort by Prediction Value",
-            value=st.session_state.sort_ascending,
-            help="Toggle between ascending (lowest confidence first) and descending (highest confidence first) order"
-        )
-        if sort_ascending:
-            st.caption("↑ Lowest confidence first")
-        else:
-            st.caption("↓ Highest confidence first")
+        # Sort control - Segmented button group
+        st.write("**Sort by Confidence:**")
+        col_high, col_low = st.columns(2)
+        
+        with col_high:
+            if st.button(
+                "↓ Highest First", 
+                use_container_width=True,
+                type="primary" if not st.session_state.sort_ascending else "secondary",
+                key="sort_desc"
+            ):
+                st.session_state.sort_ascending = False
+                st.rerun()
+                
+        with col_low:
+            if st.button(
+                "↑ Lowest First", 
+                use_container_width=True,
+                type="primary" if st.session_state.sort_ascending else "secondary",
+                key="sort_asc"
+            ):
+                st.session_state.sort_ascending = True
+                st.rerun()
+        
+        sort_ascending = st.session_state.sort_ascending
     
     with col2:
         st.write("**Filter Description:**")
