@@ -49,17 +49,16 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 </style>
 """, unsafe_allow_html=True)
 
-def fetch_prediction_data(_config: Config, cm_value_filter: str = None) -> Optional[List]:
-    """Fetch 20 prediction results, filtered by cm_value if specified"""
+def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: int = 0, limit: int = 20) -> Optional[Dict]:
+    """Fetch prediction results with pagination, filtered by cm_value if specified"""
     try:
-        # Get all predictions up to limit, then filter
-        all_predictions = []
-        offset = 0
-        limit = 100
-        
-        while len(all_predictions) < 20:
+        # For filtered results, we need to fetch more and filter client-side
+        # This is not ideal but works with current API limitations
+        if cm_value_filter and cm_value_filter != "all":
+            # Fetch larger batch to ensure we get enough filtered results
+            fetch_limit = limit * 5  # Fetch 5x to ensure we get enough filtered results
             params = {
-                "limit": limit,
+                "limit": fetch_limit,
                 "offset": offset
             }
             
@@ -71,26 +70,34 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None) -> Optio
             response.raise_for_status()
             data = response.json()
             
-            batch_predictions = data.get("data", [])
-            if not batch_predictions:
-                break
+            # Filter by cm_value
+            all_predictions = data.get("data", [])
+            filtered_predictions = [item for item in all_predictions if item.get("cm_value") == cm_value_filter]
             
-            # Filter by cm_value if specified
-            if cm_value_filter and cm_value_filter != "all":
-                filtered_batch = [item for item in batch_predictions if item.get("cm_value") == cm_value_filter]
-                all_predictions.extend(filtered_batch)
-            else:
-                all_predictions.extend(batch_predictions)
+            # Return filtered results with custom pagination info
+            return {
+                "data": filtered_predictions[:limit],
+                "pagination": {
+                    "has_more": len(filtered_predictions) > limit or data.get("pagination", {}).get("has_more", False),
+                    "total_fetched": len(filtered_predictions),
+                    "offset": offset
+                }
+            }
+        else:
+            # For unfiltered results, use API pagination directly
+            params = {
+                "limit": limit,
+                "offset": offset
+            }
             
-            # Check if we have more data
-            pagination = data.get("pagination", {})
-            if not pagination.get("has_more", False):
-                break
-                
-            offset += limit
-        
-        # Return up to 20 results
-        return all_predictions[:20]
+            response = requests.get(
+                f"{_config.base_url}prediction/",
+                params=params,
+                timeout=_config.api_timeout
+            )
+            response.raise_for_status()
+            return response.json()
+            
     except Exception as e:
         st.error(f"Failed to fetch prediction data: {str(e)}")
         return None
@@ -186,6 +193,16 @@ def main():
     
     st.title("prediction-anomalies")
     
+    # Initialize session state
+    if 'predictions' not in st.session_state:
+        st.session_state.predictions = []
+    if 'offset' not in st.session_state:
+        st.session_state.offset = 0
+    if 'has_more' not in st.session_state:
+        st.session_state.has_more = True
+    if 'current_filter' not in st.session_state:
+        st.session_state.current_filter = "all"
+    
     # Filter selection at the top
     col1, col2 = st.columns([1, 3])
     
@@ -216,19 +233,34 @@ def main():
         else:
             st.info("📊 **All Predictions**: Showing all prediction results")
     
+    # Reset data if filter changed
+    if cm_value_filter != st.session_state.current_filter:
+        st.session_state.predictions = []
+        st.session_state.offset = 0
+        st.session_state.has_more = True
+        st.session_state.current_filter = cm_value_filter
+    
     st.divider()
     
-    # Step 1: Get 20 prediction results filtered by cm_value
-    predictions = fetch_prediction_data(config, cm_value_filter=cm_value_filter)
+    # Load initial data if predictions are empty
+    if not st.session_state.predictions:
+        with st.spinner("Loading predictions..."):
+            result = fetch_prediction_data(config, cm_value_filter=cm_value_filter, offset=0, limit=20)
+            
+            if result is None:
+                return
+            
+            st.session_state.predictions = result.get("data", [])
+            st.session_state.has_more = result.get("pagination", {}).get("has_more", False)
+            st.session_state.offset = 20
     
-    if predictions is None:
-        return
+    predictions = st.session_state.predictions
     
     if not predictions:
         st.success("✅ No prediction anomalies found")
         return
     
-    st.subheader(f"Found {len(predictions)} predictions")
+    st.subheader(f"Showing {len(predictions)} predictions")
     
     # Step 2: Extract IMDB IDs and fetch matching training data
     imdb_ids = [pred.get("imdb_id") for pred in predictions if pred.get("imdb_id")]
@@ -397,6 +429,8 @@ def main():
                 
                 if st.button("would_watch", key=f"would_watch_{imdb_id}", **button_kwargs):
                     if update_label(config, imdb_id, "would_watch", current_label, current_human_labeled):
+                        # Remove the updated item from predictions
+                        st.session_state.predictions = [p for p in st.session_state.predictions if p.get("imdb_id") != imdb_id]
                         st.cache_data.clear()
                         st.rerun()
             
@@ -409,6 +443,8 @@ def main():
                 
                 if st.button("would_not", key=f"would_not_watch_{imdb_id}", **button_kwargs):
                     if update_label(config, imdb_id, "would_not_watch", current_label, current_human_labeled):
+                        # Remove the updated item from predictions
+                        st.session_state.predictions = [p for p in st.session_state.predictions if p.get("imdb_id") != imdb_id]
                         st.cache_data.clear()
                         st.rerun()
             
@@ -476,6 +512,31 @@ def main():
                 st.write(f"• **Updated:** {training_item.get('updated_at', 'NULL')}")
             
             st.divider()
+    
+    # Load More button
+    st.write("")  # Add some spacing
+    if st.session_state.has_more:
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            if st.button("🔄 Load More", type="primary", use_container_width=True, key="load_more_btn"):
+                with st.spinner("Loading more predictions..."):
+                    result = fetch_prediction_data(
+                        config, 
+                        cm_value_filter=cm_value_filter, 
+                        offset=st.session_state.offset, 
+                        limit=20
+                    )
+                    
+                    if result and result.get("data"):
+                        new_predictions = result.get("data", [])
+                        st.session_state.predictions.extend(new_predictions)
+                        st.session_state.offset += len(new_predictions)
+                        st.session_state.has_more = result.get("pagination", {}).get("has_more", False)
+                        st.rerun()
+    else:
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            st.info("✅ All predictions loaded")
 
 if __name__ == "__main__":
     main()
