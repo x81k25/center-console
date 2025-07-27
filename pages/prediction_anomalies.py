@@ -77,26 +77,56 @@ def fetch_prediction_data(_config: Config, limit: int = 100, offset: int = 0, cm
         return None
 
 @st.cache_data(ttl=300)
-def fetch_training_data_by_imdb(_config: Config, imdb_id: str) -> Optional[Dict]:
-    """Fetch training data for a specific IMDB ID"""
+def fetch_all_training_data(_config: Config) -> Optional[Dict]:
+    """Fetch all training data to search through"""
     try:
-        params = {
-            "imdb_id": imdb_id,
-            "limit": 1
-        }
+        all_data = []
+        offset = 0
+        limit = 1000
         
-        response = requests.get(
-            _config.training_endpoint,
-            params=params,
-            timeout=_config.api_timeout
-        )
-        response.raise_for_status()
-        data = response.json()
-        items = data.get("data", [])
-        return items[0] if items else None
+        while True:
+            params = {
+                "limit": limit,
+                "offset": offset,
+                "media_type": "movie"
+            }
+            
+            response = requests.get(
+                _config.training_endpoint,
+                params=params,
+                timeout=_config.api_timeout
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            batch_data = data.get("data", [])
+            if not batch_data:
+                break
+                
+            all_data.extend(batch_data)
+            
+            # Check if we have more data
+            pagination = data.get("pagination", {})
+            if not pagination.get("has_more", False):
+                break
+                
+            offset += limit
+        
+        return {"data": all_data}
     except Exception as e:
-        st.warning(f"Failed to fetch training data for {imdb_id}: {str(e)}")
+        st.error(f"Failed to fetch training data: {str(e)}")
         return None
+
+def find_training_data_by_imdb(training_data: Dict, imdb_id: str) -> Optional[Dict]:
+    """Find training data for a specific IMDB ID from cached data"""
+    if not training_data or "data" not in training_data:
+        return None
+    
+    for item in training_data["data"]:
+        if item.get("imdb_id") == imdb_id:
+            return item
+    
+    return None
 
 def update_label(_config: Config, imdb_id: str, new_label: str, current_label: str, current_human_labeled: bool) -> bool:
     """Update the label for a training item"""
@@ -184,9 +214,11 @@ def main():
     
     st.divider()
     
+    # Fetch all data
     prediction_data = fetch_prediction_data(config, cm_value_filter=cm_value_filter)
+    training_data = fetch_all_training_data(config)
     
-    if not prediction_data:
+    if not prediction_data or not training_data:
         return
     
     predictions = prediction_data.get("data", [])
@@ -200,8 +232,8 @@ def main():
     for idx, prediction in enumerate(predictions):
         imdb_id = prediction.get("imdb_id")
         
-        # Fetch training data for this prediction
-        training_item = fetch_training_data_by_imdb(config, imdb_id)
+        # Find training data for this prediction
+        training_item = find_training_data_by_imdb(training_data, imdb_id)
         
         if not training_item:
             st.warning(f"No training data found for {imdb_id}")
