@@ -49,7 +49,7 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 </style>
 """, unsafe_allow_html=True)
 
-def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: int = 0, limit: int = 20) -> Optional[Dict]:
+def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: int = 0, limit: int = 20, sort_order: str = "desc") -> Optional[Dict]:
     """Fetch prediction results with pagination, filtered by cm_value if specified"""
     try:
         # For filtered results, we need to fetch more and filter client-side
@@ -59,7 +59,9 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
             fetch_limit = limit * 5  # Fetch 5x to ensure we get enough filtered results
             params = {
                 "limit": fetch_limit,
-                "offset": offset
+                "offset": offset,
+                "sort_by": "probability",
+                "sort_order": sort_order
             }
             
             response = requests.get(
@@ -87,7 +89,9 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
             # For unfiltered results, use API pagination directly
             params = {
                 "limit": limit,
-                "offset": offset
+                "offset": offset,
+                "sort_by": "probability",
+                "sort_order": sort_order
             }
             
             response = requests.get(
@@ -202,6 +206,8 @@ def main():
         st.session_state.has_more = True
     if 'current_filter' not in st.session_state:
         st.session_state.current_filter = "all"
+    if 'sort_ascending' not in st.session_state:
+        st.session_state.sort_ascending = False
     
     # Filter selection at the top
     col1, col2 = st.columns([1, 3])
@@ -219,6 +225,17 @@ def main():
             }.get(x, x),
             index=0
         )
+        
+        # Sort toggle
+        sort_ascending = st.toggle(
+            "Sort by Prediction Value",
+            value=st.session_state.sort_ascending,
+            help="Toggle between ascending (lowest confidence first) and descending (highest confidence first) order"
+        )
+        if sort_ascending:
+            st.caption("↑ Lowest confidence first")
+        else:
+            st.caption("↓ Highest confidence first")
     
     with col2:
         st.write("**Filter Description:**")
@@ -233,19 +250,27 @@ def main():
         else:
             st.info("📊 **All Predictions**: Showing all prediction results")
     
-    # Reset data if filter changed
-    if cm_value_filter != st.session_state.current_filter:
+    # Reset data if filter or sort order changed
+    if cm_value_filter != st.session_state.current_filter or sort_ascending != st.session_state.sort_ascending:
         st.session_state.predictions = []
         st.session_state.offset = 0
         st.session_state.has_more = True
         st.session_state.current_filter = cm_value_filter
+        st.session_state.sort_ascending = sort_ascending
     
     st.divider()
     
     # Load initial data if predictions are empty
     if not st.session_state.predictions:
         with st.spinner("Loading predictions..."):
-            result = fetch_prediction_data(config, cm_value_filter=cm_value_filter, offset=0, limit=20)
+            sort_order = "asc" if st.session_state.sort_ascending else "desc"
+            result = fetch_prediction_data(
+                config, 
+                cm_value_filter=cm_value_filter, 
+                offset=0, 
+                limit=20,
+                sort_order=sort_order
+            )
             
             if result is None:
                 return
@@ -520,11 +545,13 @@ def main():
         with col2:
             if st.button("🔄 Load More", type="primary", use_container_width=True, key="load_more_btn"):
                 with st.spinner("Loading more predictions..."):
+                    sort_order = "asc" if st.session_state.sort_ascending else "desc"
                     result = fetch_prediction_data(
                         config, 
                         cm_value_filter=cm_value_filter, 
                         offset=st.session_state.offset, 
-                        limit=20
+                        limit=20,
+                        sort_order=sort_order
                     )
                     
                     if result and result.get("data"):
