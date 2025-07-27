@@ -49,28 +49,48 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 </style>
 """, unsafe_allow_html=True)
 
-def fetch_prediction_data(_config: Config, limit: int = 100, offset: int = 0, cm_value_filter: str = None) -> Optional[Dict]:
-    """Fetch prediction data from the API without caching"""
+def fetch_prediction_data(_config: Config, cm_value_filter: str = None) -> Optional[List]:
+    """Fetch 100 prediction results, filtered by cm_value if specified"""
     try:
-        params = {
-            "limit": limit,
-            "offset": offset
-        }
+        # Get all predictions up to limit, then filter
+        all_predictions = []
+        offset = 0
+        limit = 100
         
-        response = requests.get(
-            f"{_config.base_url}prediction/",
-            params=params,
-            timeout=_config.api_timeout
-        )
-        response.raise_for_status()
-        data = response.json()
-        
-        # Filter by cm_value if specified
-        if cm_value_filter and cm_value_filter != "all":
-            filtered_data = [item for item in data.get("data", []) if item.get("cm_value") == cm_value_filter]
-            data["data"] = filtered_data
+        while len(all_predictions) < 100:
+            params = {
+                "limit": limit,
+                "offset": offset
+            }
             
-        return data
+            response = requests.get(
+                f"{_config.base_url}prediction/",
+                params=params,
+                timeout=_config.api_timeout
+            )
+            response.raise_for_status()
+            data = response.json()
+            
+            batch_predictions = data.get("data", [])
+            if not batch_predictions:
+                break
+            
+            # Filter by cm_value if specified
+            if cm_value_filter and cm_value_filter != "all":
+                filtered_batch = [item for item in batch_predictions if item.get("cm_value") == cm_value_filter]
+                all_predictions.extend(filtered_batch)
+            else:
+                all_predictions.extend(batch_predictions)
+            
+            # Check if we have more data
+            pagination = data.get("pagination", {})
+            if not pagination.get("has_more", False):
+                break
+                
+            offset += limit
+        
+        # Return up to 100 results
+        return all_predictions[:100]
     except Exception as e:
         st.error(f"Failed to fetch prediction data: {str(e)}")
         return None
@@ -198,13 +218,11 @@ def main():
     
     st.divider()
     
-    # Fetch prediction data first
-    prediction_data = fetch_prediction_data(config, cm_value_filter=cm_value_filter)
+    # Step 1: Get 100 prediction results filtered by cm_value
+    predictions = fetch_prediction_data(config, cm_value_filter=cm_value_filter)
     
-    if not prediction_data:
+    if predictions is None:
         return
-    
-    predictions = prediction_data.get("data", [])
     
     if not predictions:
         st.success("✅ No prediction anomalies found")
@@ -212,7 +230,7 @@ def main():
     
     st.subheader(f"Found {len(predictions)} predictions")
     
-    # Extract IMDB IDs and fetch corresponding training data
+    # Step 2: Extract IMDB IDs and fetch matching training data
     imdb_ids = [pred.get("imdb_id") for pred in predictions if pred.get("imdb_id")]
     training_data = fetch_training_data_for_predictions(config, imdb_ids)
     
