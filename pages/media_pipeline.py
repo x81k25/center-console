@@ -92,6 +92,10 @@ def display_focused_item(item: Dict, config: Config):
     video_codec = item.get('video_codec') or 'None'
     st.write(f"**Resolution:** {resolution} | **Video Codec:** {video_codec}")
     
+    # Show original title
+    original_title = item.get('original_title', 'Unknown')
+    st.write(f"**Original Title:** {original_title}")
+    
     # Current values
     current_pipeline = item.get('pipeline_status', 'ingested')
     current_error = item.get('error_status', False)
@@ -293,6 +297,10 @@ def main():
                     resolution = item.get('resolution', 'Unknown')
                     video_codec = item.get('video_codec') or 'None'
                     st.write(f"Resolution: {resolution} | Video Codec: {video_codec}")
+                    
+                    # Show original title
+                    original_title = item.get('original_title', 'Unknown')
+                    st.write(f"Original Title: {original_title}")
                     
                     st.write(f"Hash: `{item.get('hash')}`")
                 
