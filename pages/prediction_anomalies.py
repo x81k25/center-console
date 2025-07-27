@@ -49,9 +49,8 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=300)
 def fetch_prediction_data(_config: Config, limit: int = 100, offset: int = 0, cm_value_filter: str = None) -> Optional[Dict]:
-    """Fetch prediction data from the API with caching"""
+    """Fetch prediction data from the API without caching"""
     try:
         params = {
             "limit": limit,
@@ -76,49 +75,34 @@ def fetch_prediction_data(_config: Config, limit: int = 100, offset: int = 0, cm
         st.error(f"Failed to fetch prediction data: {str(e)}")
         return None
 
-@st.cache_data(ttl=300)
-def fetch_all_training_data(_config: Config) -> Optional[Dict]:
-    """Fetch all training data to search through"""
+def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str]) -> Optional[Dict]:
+    """Fetch training data for specific IMDB IDs without caching"""
     try:
-        all_data = []
-        offset = 0
-        limit = 1000
+        if not imdb_ids:
+            return {"data": []}
         
-        while True:
-            params = {
-                "limit": limit,
-                "offset": offset,
-                "media_type": "movie"
-            }
-            
-            response = requests.get(
-                _config.training_endpoint,
-                params=params,
-                timeout=_config.api_timeout
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            batch_data = data.get("data", [])
-            if not batch_data:
-                break
-                
-            all_data.extend(batch_data)
-            
-            # Check if we have more data
-            pagination = data.get("pagination", {})
-            if not pagination.get("has_more", False):
-                break
-                
-            offset += limit
+        # Join IMDB IDs with commas for the API call
+        imdb_ids_param = ",".join(imdb_ids)
         
-        return {"data": all_data}
+        params = {
+            "imdb_id": imdb_ids_param,
+            "media_type": "movie",
+            "limit": len(imdb_ids)  # Set limit to number of IDs we're requesting
+        }
+        
+        response = requests.get(
+            _config.training_endpoint,
+            params=params,
+            timeout=_config.api_timeout
+        )
+        response.raise_for_status()
+        return response.json()
     except Exception as e:
         st.error(f"Failed to fetch training data: {str(e)}")
         return None
 
 def find_training_data_by_imdb(training_data: Dict, imdb_id: str) -> Optional[Dict]:
-    """Find training data for a specific IMDB ID from cached data"""
+    """Find training data for a specific IMDB ID from fetched data"""
     if not training_data or "data" not in training_data:
         return None
     
@@ -214,11 +198,10 @@ def main():
     
     st.divider()
     
-    # Fetch all data
+    # Fetch prediction data first
     prediction_data = fetch_prediction_data(config, cm_value_filter=cm_value_filter)
-    training_data = fetch_all_training_data(config)
     
-    if not prediction_data or not training_data:
+    if not prediction_data:
         return
     
     predictions = prediction_data.get("data", [])
@@ -228,6 +211,14 @@ def main():
         return
     
     st.subheader(f"Found {len(predictions)} predictions")
+    
+    # Extract IMDB IDs and fetch corresponding training data
+    imdb_ids = [pred.get("imdb_id") for pred in predictions if pred.get("imdb_id")]
+    training_data = fetch_training_data_for_predictions(config, imdb_ids)
+    
+    if not training_data:
+        st.error("Failed to fetch training data")
+        return
     
     for idx, prediction in enumerate(predictions):
         imdb_id = prediction.get("imdb_id")
