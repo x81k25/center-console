@@ -232,7 +232,7 @@ def main():
         
         with col_high:
             if st.button(
-                "Pred Proba Desc", 
+                "pred-proba-desc", 
                 use_container_width=True,
                 type="primary" if not st.session_state.sort_ascending else "secondary",
                 key="sort_desc"
@@ -242,7 +242,7 @@ def main():
                 
         with col_low:
             if st.button(
-                "Pred Proba Asc", 
+                "pred-proba-asc", 
                 use_container_width=True,
                 type="primary" if st.session_state.sort_ascending else "secondary",
                 key="sort_asc"
