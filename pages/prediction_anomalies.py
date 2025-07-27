@@ -50,14 +50,14 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 """, unsafe_allow_html=True)
 
 def fetch_prediction_data(_config: Config, cm_value_filter: str = None) -> Optional[List]:
-    """Fetch 100 prediction results, filtered by cm_value if specified"""
+    """Fetch 20 prediction results, filtered by cm_value if specified"""
     try:
         # Get all predictions up to limit, then filter
         all_predictions = []
         offset = 0
         limit = 100
         
-        while len(all_predictions) < 100:
+        while len(all_predictions) < 20:
             params = {
                 "limit": limit,
                 "offset": offset
@@ -89,8 +89,8 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None) -> Optio
                 
             offset += limit
         
-        # Return up to 100 results
-        return all_predictions[:100]
+        # Return up to 20 results
+        return all_predictions[:20]
     except Exception as e:
         st.error(f"Failed to fetch prediction data: {str(e)}")
         return None
@@ -218,7 +218,7 @@ def main():
     
     st.divider()
     
-    # Step 1: Get 100 prediction results filtered by cm_value
+    # Step 1: Get 20 prediction results filtered by cm_value
     predictions = fetch_prediction_data(config, cm_value_filter=cm_value_filter)
     
     if predictions is None:
