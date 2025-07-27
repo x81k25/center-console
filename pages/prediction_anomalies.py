@@ -249,8 +249,6 @@ def main():
             ):
                 st.session_state.sort_ascending = True
                 st.rerun()
-        
-        sort_ascending = st.session_state.sort_ascending
     
     with col2:
         st.write("**Filter Description:**")
@@ -265,13 +263,12 @@ def main():
         else:
             st.info("📊 **All Predictions**: Showing all prediction results")
     
-    # Reset data if filter or sort order changed
-    if cm_value_filter != st.session_state.current_filter or sort_ascending != st.session_state.sort_ascending:
+    # Reset data if filter changed
+    if cm_value_filter != st.session_state.current_filter:
         st.session_state.predictions = []
         st.session_state.offset = 0
         st.session_state.has_more = True
         st.session_state.current_filter = cm_value_filter
-        st.session_state.sort_ascending = sort_ascending
     
     st.divider()
     
