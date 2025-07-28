@@ -52,12 +52,6 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: int = 0, limit: int = 20, sort_order: str = "desc") -> Optional[Dict]:
     """Fetch prediction results with pagination, filtered by cm_value if specified"""
     try:
-        # Debug: Show API call parameters
-        st.sidebar.write("**🔍 API Debug Info:**")
-        st.sidebar.write(f"- sort_order: {sort_order}")
-        st.sidebar.write(f"- filter: {cm_value_filter}")
-        st.sidebar.write(f"- offset: {offset}")
-        st.sidebar.write(f"- limit: {limit}")
         # For filtered results, we need to fetch more and filter client-side
         # This is not ideal but works with current API limitations
         if cm_value_filter and cm_value_filter != "all":
@@ -78,11 +72,9 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
             response.raise_for_status()
             data = response.json()
             
-            # Debug: Show API response
-            st.sidebar.write(f"- API URL: {response.url}")
-            if data.get("data"):
-                st.sidebar.write(f"- First result prob: {data['data'][0].get('probability', 'N/A')}")
-                st.sidebar.write(f"- Last result prob: {data['data'][-1].get('probability', 'N/A')}")
+            # Store debug info in session state
+            st.session_state.debug_api_call = f"GET {response.url}"
+            st.session_state.debug_results = data.get("data", [])
             
             # Filter by cm_value
             all_predictions = data.get("data", [])
@@ -114,11 +106,9 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
             response.raise_for_status()
             data = response.json()
             
-            # Debug: Show API response
-            st.sidebar.write(f"- API URL: {response.url}")
-            if data.get("data"):
-                st.sidebar.write(f"- First result prob: {data['data'][0].get('probability', 'N/A')}")
-                st.sidebar.write(f"- Last result prob: {data['data'][-1].get('probability', 'N/A')}")
+            # Store debug info in session state
+            st.session_state.debug_api_call = f"GET {response.url}"
+            st.session_state.debug_results = data.get("data", [])
             
             return data
             
@@ -262,6 +252,14 @@ def main():
         elif sort_selection == "pred-proba-desc" and st.session_state.sort_ascending:
             st.session_state.sort_ascending = False
             st.rerun()
+        
+        # Debug: Show API call and results
+        if 'debug_api_call' in st.session_state and 'debug_results' in st.session_state:
+            with st.expander("🔍 Debug: API Call & Results", expanded=True):
+                st.code(st.session_state.debug_api_call, language="bash")
+                st.write("**Top 10 Results:**")
+                for i, result in enumerate(st.session_state.debug_results[:10], 1):
+                    st.write(f"{i}. IMDB: {result.get('imdb_id', 'N/A')} | Prob: {result.get('probability', 'N/A'):.4f} | CM: {result.get('cm_value', 'N/A')}")
     
     with col2:
         st.write("**Filter Description:**")
