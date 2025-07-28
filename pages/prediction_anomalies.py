@@ -226,29 +226,22 @@ def main():
             index=0
         )
         
-        # Sort control - Segmented button group
+        # Sort control - Pills
         st.write("**Sort by Confidence:**")
-        col_high, col_low = st.columns(2)
+        sort_selection = st.pills(
+            "Sort Order", 
+            ["pred-proba-desc", "pred-proba-asc"],
+            default="pred-proba-desc" if not st.session_state.sort_ascending else "pred-proba-asc",
+            key="sort_pills"
+        )
         
-        with col_high:
-            if st.button(
-                "pred-proba-desc", 
-                use_container_width=True,
-                type="primary" if not st.session_state.sort_ascending else "secondary",
-                key="sort_desc"
-            ):
-                st.session_state.sort_ascending = False
-                st.rerun()
-                
-        with col_low:
-            if st.button(
-                "pred-proba-asc", 
-                use_container_width=True,
-                type="primary" if st.session_state.sort_ascending else "secondary",
-                key="sort_asc"
-            ):
-                st.session_state.sort_ascending = True
-                st.rerun()
+        # Update sort order based on selection
+        if sort_selection == "pred-proba-asc" and not st.session_state.sort_ascending:
+            st.session_state.sort_ascending = True
+            st.rerun()
+        elif sort_selection == "pred-proba-desc" and st.session_state.sort_ascending:
+            st.session_state.sort_ascending = False
+            st.rerun()
     
     with col2:
         st.write("**Filter Description:**")
