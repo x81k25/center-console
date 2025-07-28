@@ -52,65 +52,31 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: int = 0, limit: int = 20, sort_order: str = "desc") -> Optional[Dict]:
     """Fetch prediction results with pagination, filtered by cm_value if specified"""
     try:
-        # For filtered results, we need to fetch more and filter client-side
-        # This is not ideal but works with current API limitations
+        # Build API parameters
+        params = {
+            "limit": limit,
+            "offset": offset,
+            "sort_by": "probability",
+            "sort_order": sort_order
+        }
+        
+        # Add cm_value filter if specified
         if cm_value_filter and cm_value_filter != "all":
-            # Fetch larger batch to ensure we get enough filtered results
-            fetch_limit = limit * 5  # Fetch 5x to ensure we get enough filtered results
-            params = {
-                "limit": fetch_limit,
-                "offset": offset,
-                "sort_by": "probability",
-                "sort_order": sort_order
-            }
-            
-            response = requests.get(
-                f"{_config.base_url}prediction/",
-                params=params,
-                timeout=_config.api_timeout
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            # Store debug info in session state
-            st.session_state.debug_api_call = response.url
-            st.session_state.debug_results = data.get("data", [])
-            
-            # Filter by cm_value
-            all_predictions = data.get("data", [])
-            filtered_predictions = [item for item in all_predictions if item.get("cm_value") == cm_value_filter]
-            
-            # Return filtered results with custom pagination info
-            return {
-                "data": filtered_predictions[:limit],
-                "pagination": {
-                    "has_more": len(filtered_predictions) > limit or data.get("pagination", {}).get("has_more", False),
-                    "total_fetched": len(filtered_predictions),
-                    "offset": offset
-                }
-            }
-        else:
-            # For unfiltered results, use API pagination directly
-            params = {
-                "limit": limit,
-                "offset": offset,
-                "sort_by": "probability",
-                "sort_order": sort_order
-            }
-            
-            response = requests.get(
-                f"{_config.base_url}prediction/",
-                params=params,
-                timeout=_config.api_timeout
-            )
-            response.raise_for_status()
-            data = response.json()
-            
-            # Store debug info in session state
-            st.session_state.debug_api_call = response.url
-            st.session_state.debug_results = data.get("data", [])
-            
-            return data
+            params["cm_value"] = cm_value_filter
+        
+        response = requests.get(
+            f"{_config.base_url}prediction/",
+            params=params,
+            timeout=_config.api_timeout
+        )
+        response.raise_for_status()
+        data = response.json()
+        
+        # Store debug info in session state
+        st.session_state.debug_api_call = response.url
+        st.session_state.debug_results = data.get("data", [])
+        
+        return data
             
     except Exception as e:
         st.error(f"Failed to fetch prediction data: {str(e)}")
