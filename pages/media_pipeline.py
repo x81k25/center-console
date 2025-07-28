@@ -32,6 +32,10 @@ def make_patch_call(config: Config, hash_id: str, updates: Dict):
             timeout=config.api_timeout
         )
         
+        # Store API call info in session state for display
+        st.session_state.last_api_call = f"PATCH {endpoint}"
+        st.session_state.last_api_payload = json.dumps(payload, indent=2)
+        
         logger.info(f"Response Status Code: {response.status_code}")
         logger.info(f"Response Headers: {dict(response.headers)}")
         logger.info(f"Response Text: {response.text}")
@@ -268,6 +272,12 @@ def main():
     
     elif search_button and not search_term:
         st.warning("Please enter a search term")
+    
+    # Debug: Show last API call if one was made
+    if 'last_api_call' in st.session_state and 'last_api_payload' in st.session_state:
+        st.code(st.session_state.last_api_call, language="bash")
+        with st.expander("API Payload", expanded=False):
+            st.code(st.session_state.last_api_payload, language="json")
     
     # Display results or focused item
     if st.session_state.selected_item:
