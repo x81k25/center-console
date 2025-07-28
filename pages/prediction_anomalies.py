@@ -73,7 +73,7 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
             data = response.json()
             
             # Store debug info in session state
-            st.session_state.debug_api_call = f"GET {response.url}"
+            st.session_state.debug_api_call = response.url
             st.session_state.debug_results = data.get("data", [])
             
             # Filter by cm_value
@@ -107,7 +107,7 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
             data = response.json()
             
             # Store debug info in session state
-            st.session_state.debug_api_call = f"GET {response.url}"
+            st.session_state.debug_api_call = response.url
             st.session_state.debug_results = data.get("data", [])
             
             return data
@@ -254,22 +254,6 @@ def main():
             st.session_state.sort_ascending = False
             st.session_state.data_loaded = False  # Force reload with new sort
             st.rerun()
-        
-        # Debug: Show API call and results
-        if 'debug_api_call' in st.session_state and 'debug_results' in st.session_state:
-            with st.expander("🔍 Debug: API Call & Results", expanded=True):
-                st.code(st.session_state.debug_api_call, language="bash")
-                st.write("**Top 10 Results:**")
-                for i, result in enumerate(st.session_state.debug_results[:10], 1):
-                    prob = result.get('probability')
-                    if prob is not None:
-                        try:
-                            prob_str = f"{float(prob):.4f}"
-                        except (ValueError, TypeError):
-                            prob_str = str(prob)
-                    else:
-                        prob_str = "N/A"
-                    st.write(f"{i}. IMDB: {result.get('imdb_id', 'N/A')} | Prob: {prob_str} | CM: {result.get('cm_value', 'N/A')}")
     
     with col2:
         st.write("**Filter Description:**")
@@ -283,6 +267,10 @@ def main():
             st.info("⚪ **True Negatives**: Model correctly predicted 'would_not_watch'")
         else:
             st.info("📊 **All Predictions**: Showing all prediction results")
+    
+    # Debug: Show API call (full width)
+    if 'debug_api_call' in st.session_state:
+        st.code(st.session_state.debug_api_call, language="bash")
     
     # Track if we need to reload data
     need_reload = False
