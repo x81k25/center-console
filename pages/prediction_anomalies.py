@@ -259,7 +259,9 @@ def main():
                 st.code(st.session_state.debug_api_call, language="bash")
                 st.write("**Top 10 Results:**")
                 for i, result in enumerate(st.session_state.debug_results[:10], 1):
-                    st.write(f"{i}. IMDB: {result.get('imdb_id', 'N/A')} | Prob: {result.get('probability', 'N/A'):.4f} | CM: {result.get('cm_value', 'N/A')}")
+                    prob = result.get('probability')
+                    prob_str = f"{prob:.4f}" if prob is not None else "N/A"
+                    st.write(f"{i}. IMDB: {result.get('imdb_id', 'N/A')} | Prob: {prob_str} | CM: {result.get('cm_value', 'N/A')}")
     
     with col2:
         st.write("**Filter Description:**")
