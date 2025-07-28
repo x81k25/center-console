@@ -248,9 +248,13 @@ def main():
         # Update sort order based on selection
         if sort_selection == "pred-proba-asc" and not st.session_state.sort_ascending:
             st.session_state.sort_ascending = True
+            st.session_state.predictions = []  # Clear data to force reload
+            st.session_state.offset = 0
             st.rerun()
         elif sort_selection == "pred-proba-desc" and st.session_state.sort_ascending:
             st.session_state.sort_ascending = False
+            st.session_state.predictions = []  # Clear data to force reload
+            st.session_state.offset = 0
             st.rerun()
         
         # Debug: Show API call and results
