@@ -234,9 +234,23 @@ def main():
         else:
             st.info("📊 **All Predictions**: Showing all prediction results")
     
-    # Debug: Show API call (full width)
-    if 'debug_api_call' in st.session_state:
-        st.code(st.session_state.debug_api_call, language="bash")
+    # Debug: Show API call (full width) - always display current parameters
+    sort_order = "asc" if st.session_state.sort_ascending else "desc"
+    debug_params = {
+        "limit": 20,
+        "offset": 0,
+        "sort_by": "probability",
+        "sort_order": sort_order
+    }
+    if cm_value_filter and cm_value_filter != "all":
+        debug_params["cm_value"] = cm_value_filter
+    
+    # Construct URL string for display
+    base_url = f"{config.base_url}prediction/"
+    param_string = "&".join([f"{k}={v}" for k, v in debug_params.items()])
+    current_api_url = f"{base_url}?{param_string}"
+    
+    st.code(current_api_url, language="bash")
     
     # Track if we need to reload data
     need_reload = False
