@@ -260,7 +260,13 @@ def main():
                 st.write("**Top 10 Results:**")
                 for i, result in enumerate(st.session_state.debug_results[:10], 1):
                     prob = result.get('probability')
-                    prob_str = f"{prob:.4f}" if prob is not None else "N/A"
+                    if prob is not None:
+                        try:
+                            prob_str = f"{float(prob):.4f}"
+                        except (ValueError, TypeError):
+                            prob_str = str(prob)
+                    else:
+                        prob_str = "N/A"
                     st.write(f"{i}. IMDB: {result.get('imdb_id', 'N/A')} | Prob: {prob_str} | CM: {result.get('cm_value', 'N/A')}")
     
     with col2:
