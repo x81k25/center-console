@@ -16,9 +16,13 @@ def make_patch_call(config: Config, hash_id: str, updates: Dict):
     # Prepare payload with hash and updates
     payload = {"hash": hash_id, **updates}
     
+    endpoint = config.get_media_pipeline_endpoint(hash_id)
+    
+    # Store API call info in session state for display (before making the call)
+    st.session_state.last_api_call = f"PATCH {endpoint}"
+    st.session_state.last_api_payload = json.dumps(payload, indent=2)
+    
     try:
-        endpoint = config.get_media_pipeline_endpoint(hash_id)
-        
         logger.info("=" * 80)
         logger.info("MAKING PATCH CALL")
         logger.info(f"Hash: {hash_id}")
@@ -91,6 +95,10 @@ def display_focused_item(item: Dict, config: Config):
     resolution = item.get('resolution', 'Unknown')
     video_codec = item.get('video_codec') or 'None'
     st.write(f"**Resolution:** {resolution} | **Video Codec:** {video_codec}")
+    
+    # Show original title
+    original_title = item.get('original_title', 'Unknown')
+    st.write(f"**Original Title:** {original_title}")
     
     # Current values
     current_pipeline = item.get('pipeline_status', 'ingested')
@@ -265,6 +273,12 @@ def main():
     elif search_button and not search_term:
         st.warning("Please enter a search term")
     
+    # Debug: Show last API call if one was made
+    if 'last_api_call' in st.session_state and 'last_api_payload' in st.session_state:
+        st.code(st.session_state.last_api_call, language="bash")
+        with st.expander("API Payload", expanded=False):
+            st.code(st.session_state.last_api_payload, language="json")
+    
     # Display results or focused item
     if st.session_state.selected_item:
         # Show focused item with toggles
@@ -293,6 +307,10 @@ def main():
                     resolution = item.get('resolution', 'Unknown')
                     video_codec = item.get('video_codec') or 'None'
                     st.write(f"Resolution: {resolution} | Video Codec: {video_codec}")
+                    
+                    # Show original title
+                    original_title = item.get('original_title', 'Unknown')
+                    st.write(f"Original Title: {original_title}")
                     
                     st.write(f"Hash: `{item.get('hash')}`")
                 

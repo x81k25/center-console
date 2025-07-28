@@ -122,6 +122,19 @@ def main():
     
     st.title("training-backlog")
     
+    # Debug: Show API call with current parameters
+    training_params = {
+        "page": 1,
+        "limit": 20,
+        "sort_by": "updated_at",
+        "sort_order": "desc",
+        "reviewed": "false",
+        "media_type": "movie"
+    }
+    param_string = "&".join([f"{k}={v}" for k, v in training_params.items()])
+    api_url = f"{config.training_endpoint}?{param_string}"
+    st.code(api_url, language="bash")
+    
     data = fetch_training_data(config)
     
     if not data:

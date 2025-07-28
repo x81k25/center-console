@@ -116,6 +116,14 @@ Select a page from the sidebar to get started, or click the links below:
 - Expandable details with comprehensive movie information
 - Auto-refresh after each review decision
 
+### 🔍 [Prediction Anomalies](prediction-anomalies)
+**ML Prediction Analysis**
+- Review model predictions with filter by confusion matrix values
+- Analyze false positives and false negatives
+- Update labels for mispredicted items
+- Display prediction probability and actual vs predicted labels
+- Filter by: All, False Positives, False Negatives, True Positives, True Negatives
+
 ### 🎬 [Media Library](get-media)
 **Media Collection Browser**
 - Browse complete media collection with pagination

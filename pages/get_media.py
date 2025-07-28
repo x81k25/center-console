@@ -62,6 +62,17 @@ def main():
     with col2:
         limit = st.selectbox("Items per page", [10, 20, 50], index=1)
     
+    # Debug: Show API call with current parameters
+    media_params = {
+        "page": page,
+        "limit": limit,
+        "sort_by": "updated_at",
+        "sort_order": "desc"
+    }
+    param_string = "&".join([f"{k}={v}" for k, v in media_params.items()])
+    api_url = f"{config.media_endpoint}?{param_string}"
+    st.code(api_url, language="bash")
+    
     data = fetch_media_data(config, page=page, limit=limit)
     
     if not data:

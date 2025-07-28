@@ -1,4 +1,0 @@
-streamlit==1.46.0
-requests==2.32.4
-pandas==2.3.0
-python-dotenv==1.1.0
