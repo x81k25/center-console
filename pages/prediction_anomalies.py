@@ -248,13 +248,11 @@ def main():
         # Update sort order based on selection
         if sort_selection == "pred-proba-asc" and not st.session_state.sort_ascending:
             st.session_state.sort_ascending = True
-            st.session_state.predictions = []  # Clear data to force reload
-            st.session_state.offset = 0
+            st.session_state.data_loaded = False  # Force reload with new sort
             st.rerun()
         elif sort_selection == "pred-proba-desc" and st.session_state.sort_ascending:
             st.session_state.sort_ascending = False
-            st.session_state.predictions = []  # Clear data to force reload
-            st.session_state.offset = 0
+            st.session_state.data_loaded = False  # Force reload with new sort
             st.rerun()
         
         # Debug: Show API call and results
@@ -286,17 +284,22 @@ def main():
         else:
             st.info("📊 **All Predictions**: Showing all prediction results")
     
-    # Reset data if filter changed
+    # Track if we need to reload data
+    need_reload = False
+    
+    # Check if filter changed
     if cm_value_filter != st.session_state.current_filter:
-        st.session_state.predictions = []
-        st.session_state.offset = 0
-        st.session_state.has_more = True
         st.session_state.current_filter = cm_value_filter
+        need_reload = True
+    
+    # Check if this is first load or we need to reload
+    if 'data_loaded' not in st.session_state:
+        st.session_state.data_loaded = False
     
     st.divider()
     
-    # Load initial data if predictions are empty
-    if not st.session_state.predictions:
+    # Always fetch fresh data on page load or when parameters change
+    if not st.session_state.data_loaded or need_reload:
         with st.spinner("Loading predictions..."):
             sort_order = "asc" if st.session_state.sort_ascending else "desc"
             result = fetch_prediction_data(
@@ -313,6 +316,7 @@ def main():
             st.session_state.predictions = result.get("data", [])
             st.session_state.has_more = result.get("pagination", {}).get("has_more", False)
             st.session_state.offset = 20
+            st.session_state.data_loaded = True
     
     predictions = st.session_state.predictions
     
@@ -491,7 +495,6 @@ def main():
                     if update_label(config, imdb_id, "would_watch", current_label, current_human_labeled):
                         # Remove the updated item from predictions
                         st.session_state.predictions = [p for p in st.session_state.predictions if p.get("imdb_id") != imdb_id]
-                        st.cache_data.clear()
                         st.rerun()
             
             with col9:
@@ -505,7 +508,6 @@ def main():
                     if update_label(config, imdb_id, "would_not_watch", current_label, current_human_labeled):
                         # Remove the updated item from predictions
                         st.session_state.predictions = [p for p in st.session_state.predictions if p.get("imdb_id") != imdb_id]
-                        st.cache_data.clear()
                         st.rerun()
             
             # Expandable details section
