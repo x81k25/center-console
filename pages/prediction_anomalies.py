@@ -226,13 +226,13 @@ def main():
             index=0
         )
         
-        # Sort control - Pills
-        st.write("**Sort by Confidence:**")
-        sort_selection = st.pills(
-            "Sort Order", 
-            ["pred-proba-desc", "pred-proba-asc"],
-            default="pred-proba-desc" if not st.session_state.sort_ascending else "pred-proba-asc",
-            key="sort_pills"
+        # Sort control - Dropdown
+        sort_selection = st.selectbox(
+            "Sort by Confidence:",
+            options=["pred-proba-desc", "pred-proba-asc"],
+            index=0 if not st.session_state.sort_ascending else 1,
+            format_func=lambda x: "High → Low (desc)" if x == "pred-proba-desc" else "Low → High (asc)",
+            key="sort_dropdown"
         )
         
         # Update sort order based on selection
