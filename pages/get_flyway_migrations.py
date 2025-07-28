@@ -91,6 +91,15 @@ def main():
             index=0
         )
     
+    # Debug: Show API call with current parameters
+    flyway_params = {
+        "sort_by": sort_by,
+        "sort_order": sort_order
+    }
+    param_string = "&".join([f"{k}={v}" for k, v in flyway_params.items()])
+    api_url = f"{config.flyway_endpoint}?{param_string}"
+    st.code(api_url, language="bash")
+    
     data = fetch_flyway_data(config, sort_by=sort_by, sort_order=sort_order)
     
     if not data:
