@@ -16,9 +16,13 @@ def make_patch_call(config: Config, hash_id: str, updates: Dict):
     # Prepare payload with hash and updates
     payload = {"hash": hash_id, **updates}
     
+    endpoint = config.get_media_pipeline_endpoint(hash_id)
+    
+    # Store API call info in session state for display (before making the call)
+    st.session_state.last_api_call = f"PATCH {endpoint}"
+    st.session_state.last_api_payload = json.dumps(payload, indent=2)
+    
     try:
-        endpoint = config.get_media_pipeline_endpoint(hash_id)
-        
         logger.info("=" * 80)
         logger.info("MAKING PATCH CALL")
         logger.info(f"Hash: {hash_id}")
@@ -31,10 +35,6 @@ def make_patch_call(config: Config, hash_id: str, updates: Dict):
             json=payload,
             timeout=config.api_timeout
         )
-        
-        # Store API call info in session state for display
-        st.session_state.last_api_call = f"PATCH {endpoint}"
-        st.session_state.last_api_payload = json.dumps(payload, indent=2)
         
         logger.info(f"Response Status Code: {response.status_code}")
         logger.info(f"Response Headers: {dict(response.headers)}")
