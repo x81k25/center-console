@@ -30,9 +30,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-@st.cache_data(ttl=300)
-def fetch_flyway_data(_config: Config, sort_by: str = "version", sort_order: str = "desc") -> Optional[Dict]:
-    """Fetch flyway migration data from the API with caching"""
+def fetch_flyway_data(config: Config, sort_by: str = "version", sort_order: str = "desc") -> Optional[Dict]:
+    """Fetch flyway migration data from the API"""
     try:
         params = {
             "sort_by": sort_by,
@@ -40,9 +39,9 @@ def fetch_flyway_data(_config: Config, sort_by: str = "version", sort_order: str
         }
         
         response = requests.get(
-            _config.flyway_endpoint,
+            config.flyway_endpoint,
             params=params,
-            timeout=_config.api_timeout
+            timeout=config.api_timeout
         )
         response.raise_for_status()
         return response.json()
@@ -91,6 +90,15 @@ def main():
             ["desc", "asc"], 
             index=0
         )
+    
+    # Debug: Show API call with current parameters
+    flyway_params = {
+        "sort_by": sort_by,
+        "sort_order": sort_order
+    }
+    param_string = "&".join([f"{k}={v}" for k, v in flyway_params.items()])
+    api_url = f"{config.flyway_endpoint}?{param_string}"
+    st.code(api_url, language="bash")
     
     data = fetch_flyway_data(config, sort_by=sort_by, sort_order=sort_order)
     
