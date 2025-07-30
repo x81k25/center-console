@@ -71,44 +71,30 @@ def fetch_training_data(_config: Config, page: int = 1, limit: int = 20) -> Opti
 def update_label(_config: Config, imdb_id: str, new_label: str, current_label: str, current_human_labeled: bool) -> bool:
     """Update the label for a training item"""
     try:
-        # If new label matches current label, use reviewed endpoint
+        # If new label matches current label, only set reviewed=True
         if new_label == current_label:
-            return mark_as_reviewed(_config, imdb_id)
-        
-        # If labels differ, use label endpoint with human_labeled=true
-        payload = {
-            "imdb_id": imdb_id,
-            "label": new_label,
-            "human_labeled": True,
-            "reviewed": True
-        }
+            payload = {
+                "imdb_id": imdb_id,
+                "reviewed": True
+            }
+        else:
+            # If labels differ, set label, human_labeled=True, and reviewed=True
+            payload = {
+                "imdb_id": imdb_id,
+                "label": new_label,
+                "human_labeled": True,
+                "reviewed": True
+            }
         
         response = requests.patch(
-            _config.get_label_update_endpoint(imdb_id),
+            _config.get_training_update_endpoint(imdb_id),
             json=payload,
             timeout=_config.api_timeout
         )
         response.raise_for_status()
         return True
     except Exception as e:
-        st.error(f"Failed to update label for {imdb_id}: {str(e)}")
-        return False
-
-def mark_as_reviewed(_config: Config, imdb_id: str) -> bool:
-    """Mark a training item as reviewed"""
-    try:
-        endpoint = f"{_config.base_url}training/{imdb_id}/reviewed"
-        payload = {"imdb_id": imdb_id, "reviewed": True}
-        
-        response = requests.patch(
-            endpoint,
-            json=payload,
-            timeout=_config.api_timeout
-        )
-        response.raise_for_status()
-        return True
-    except Exception as e:
-        st.error(f"Failed to mark {imdb_id} as reviewed: {str(e)}")
+        st.error(f"Failed to update training item {imdb_id}: {str(e)}")
         return False
 
 def main():

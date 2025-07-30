@@ -24,6 +24,13 @@ div[data-testid="stButton"] > button[kind="tertiary"] {
     border-color: #d62728 !important;
 }
 
+/* Green buttons for anomalous when active */
+div[data-testid="stButton"] > button[kind="secondary"] {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-color: #28a745 !important;
+}
+
 /* Transparent buttons when inactive */
 div[data-testid="stButton"] > button:not([kind]) {
     background-color: transparent !important;
@@ -122,44 +129,49 @@ def find_training_data_by_imdb(training_data: Dict, imdb_id: str) -> Optional[Di
 def update_label(_config: Config, imdb_id: str, new_label: str, current_label: str, current_human_labeled: bool) -> bool:
     """Update the label for a training item"""
     try:
-        # If new label matches current label, use reviewed endpoint
+        # If new label matches current label, only set reviewed=True
         if new_label == current_label:
-            return mark_as_reviewed(_config, imdb_id)
+            payload = {
+                "imdb_id": imdb_id,
+                "reviewed": True
+            }
+        else:
+            # If labels differ, set label, human_labeled=True, and reviewed=True
+            payload = {
+                "imdb_id": imdb_id,
+                "label": new_label,
+                "human_labeled": True,
+                "reviewed": True
+            }
         
-        # If labels differ, use label endpoint with human_labeled=true
+        response = requests.patch(
+            _config.get_training_update_endpoint(imdb_id),
+            json=payload,
+            timeout=_config.api_timeout
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        st.error(f"Failed to update training item {imdb_id}: {str(e)}")
+        return False
+
+def toggle_anomalous(_config: Config, imdb_id: str, current_anomalous: bool) -> bool:
+    """Toggle the anomalous status for a training item"""
+    try:
         payload = {
             "imdb_id": imdb_id,
-            "label": new_label,
-            "human_labeled": True,
-            "reviewed": True
+            "anomalous": not current_anomalous
         }
         
         response = requests.patch(
-            _config.get_label_update_endpoint(imdb_id),
+            _config.get_training_update_endpoint(imdb_id),
             json=payload,
             timeout=_config.api_timeout
         )
         response.raise_for_status()
         return True
     except Exception as e:
-        st.error(f"Failed to update label for {imdb_id}: {str(e)}")
-        return False
-
-def mark_as_reviewed(_config: Config, imdb_id: str) -> bool:
-    """Mark a training item as reviewed"""
-    try:
-        endpoint = f"{_config.base_url}training/{imdb_id}/reviewed"
-        payload = {"imdb_id": imdb_id, "reviewed": True}
-        
-        response = requests.patch(
-            endpoint,
-            json=payload,
-            timeout=_config.api_timeout
-        )
-        response.raise_for_status()
-        return True
-    except Exception as e:
-        st.error(f"Failed to mark {imdb_id} as reviewed: {str(e)}")
+        st.error(f"Failed to toggle anomalous for {imdb_id}: {str(e)}")
         return False
 
 def main():
@@ -313,8 +325,8 @@ def main():
             continue
             
         with st.container():
-            # Main row with basic info and buttons
-            col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2.5, 1, 1, 0.8, 0.6, 1, 1.5, 1.2, 1.2])
+            # Main row with basic info and buttons - added col10 for anomalous button
+            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns([2.2, 1, 1, 0.8, 0.6, 1, 1.3, 1.1, 1.1, 1.1])
             
             with col1:
                 st.write(f"**{training_item.get('media_title', 'Unknown')}**")
@@ -451,6 +463,7 @@ def main():
             
             current_label = training_item.get('label', '')
             current_human_labeled = training_item.get('human_labeled', False)
+            current_anomalous = training_item.get('anomalous', False)
             
             with col8:
                 # Would Watch button - blue when active, transparent when inactive
@@ -461,8 +474,8 @@ def main():
                 
                 if st.button("would_watch", key=f"would_watch_{imdb_id}", **button_kwargs):
                     if update_label(config, imdb_id, "would_watch", current_label, current_human_labeled):
-                        # Remove the updated item from predictions
-                        st.session_state.predictions = [p for p in st.session_state.predictions if p.get("imdb_id") != imdb_id]
+                        # Refresh data to show updated values
+                        st.session_state.data_loaded = False
                         st.rerun()
             
             with col9:
@@ -474,8 +487,21 @@ def main():
                 
                 if st.button("would_not", key=f"would_not_watch_{imdb_id}", **button_kwargs):
                     if update_label(config, imdb_id, "would_not_watch", current_label, current_human_labeled):
-                        # Remove the updated item from predictions
-                        st.session_state.predictions = [p for p in st.session_state.predictions if p.get("imdb_id") != imdb_id]
+                        # Refresh data to show updated values  
+                        st.session_state.data_loaded = False
+                        st.rerun()
+            
+            with col10:
+                # Anomalous button - green when true, transparent when false
+                button_type = "secondary" if current_anomalous else None
+                button_kwargs = {"use_container_width": True}
+                if button_type:
+                    button_kwargs["type"] = button_type
+                
+                if st.button("anomalous", key=f"anomalous_{imdb_id}", **button_kwargs):
+                    if toggle_anomalous(config, imdb_id, current_anomalous):
+                        # Refresh data to show updated values
+                        st.session_state.data_loaded = False
                         st.rerun()
             
             # Expandable details section
