@@ -7,7 +7,7 @@ import time
 
 st.set_page_config(page_title="prediction-anomalies", layout="wide")
 
-# Custom CSS for button styling with unique class identifiers
+# Global custom CSS for button styling
 st.markdown("""
 <style>
 /* Blue buttons for would_watch when active */
@@ -17,38 +17,20 @@ div[data-testid="stButton"] > button[kind="primary"] {
     border-color: #1f77b4 !important;
 }
 
-/* Style for would_not_watch buttons specifically in col9 */
-div[data-testid="column"]:nth-of-type(9) button {
-    background-color: transparent !important;
-    color: #262730 !important;
-    border: 1px solid #d0d0d0 !important;
-}
-
-div[data-testid="column"]:nth-of-type(9) button[kind="tertiary"] {
+/* Red buttons for would_not_watch when active */
+div[data-testid="stButton"] > button[kind="tertiary"] {
     background-color: #d62728 !important;
     color: white !important;
     border-color: #d62728 !important;
 }
 
-/* Style for anomalous buttons specifically in col10 */
-div[data-testid="column"]:nth-of-type(10) button {
-    background-color: transparent !important;
-    color: #262730 !important;
-    border: 1px solid #d0d0d0 !important;
-}
-
-div[data-testid="column"]:nth-of-type(10) .anomalous-active button {
-    background-color: #28a745 !important;
-    color: white !important;
-    border-color: #28a745 !important;
-}
-
-/* Transparent buttons when inactive (general) */
+/* Transparent buttons when inactive */
 div[data-testid="stButton"] > button:not([kind]) {
     background-color: transparent !important;
     color: #262730 !important;
     border: 1px solid #d0d0d0 !important;
 }
+
 
 /* Custom progress bar colors */
 /* RT Score - Crimson */
@@ -508,18 +490,26 @@ def main():
             
             with col10:
                 # Anomalous button - green when true, transparent when false
-                # Use a container with custom class for styling
-                if current_anomalous:
-                    st.markdown('<div class="anomalous-active">', unsafe_allow_html=True)
+                button_id = f"anomalous_{imdb_id}"
                 
-                if st.button("anomalous", key=f"anomalous_{imdb_id}", use_container_width=True):
+                # Apply specific CSS for this button based on state
+                if current_anomalous:
+                    # Green styling for active anomalous state
+                    st.markdown(f"""
+                    <style>
+                    div[data-testid="column"]:has(button:contains("anomalous")) button {{
+                        background-color: #28a745 !important;
+                        color: white !important;
+                        border-color: #28a745 !important;
+                    }}
+                    </style>
+                    """, unsafe_allow_html=True)
+                
+                if st.button("anomalous", key=button_id, use_container_width=True):
                     if toggle_anomalous(config, imdb_id, current_anomalous):
                         # Refresh data to show updated values
                         st.session_state.data_loaded = False
                         st.rerun()
-                
-                if current_anomalous:
-                    st.markdown('</div>', unsafe_allow_html=True)
             
             # Expandable details section
             with st.expander(f"📋 Details for {training_item.get('media_title', 'Unknown')}", expanded=False):
