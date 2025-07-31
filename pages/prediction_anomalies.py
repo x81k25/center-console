@@ -24,11 +24,19 @@ div[data-testid="stButton"] > button[kind="tertiary"] {
     border-color: #d62728 !important;
 }
 
+
 /* Transparent buttons when inactive */
 div[data-testid="stButton"] > button:not([kind]) {
     background-color: transparent !important;
     color: #262730 !important;
     border: 1px solid #d0d0d0 !important;
+}
+
+/* Green styling for anomalous buttons with emoji */
+div[data-testid="stButton"] > button:contains("🟢") {
+    background-color: #28a745 !important;
+    color: white !important;
+    border-color: #28a745 !important;
 }
 
 
@@ -492,24 +500,19 @@ def main():
                 # Anomalous button - green when true, transparent when false
                 button_id = f"anomalous_{imdb_id}"
                 
-                # Apply specific CSS for this button based on state
+                # Use custom HTML button to avoid type conflicts
                 if current_anomalous:
-                    # Green styling for active anomalous state
-                    st.markdown(f"""
-                    <style>
-                    div[data-testid="column"]:has(button:contains("anomalous")) button {{
-                        background-color: #28a745 !important;
-                        color: white !important;
-                        border-color: #28a745 !important;
-                    }}
-                    </style>
-                    """, unsafe_allow_html=True)
-                
-                if st.button("anomalous", key=button_id, use_container_width=True):
-                    if toggle_anomalous(config, imdb_id, current_anomalous):
-                        # Refresh data to show updated values
-                        st.session_state.data_loaded = False
-                        st.rerun()
+                    if st.button("🟢 anomalous", key=button_id, use_container_width=True):
+                        if toggle_anomalous(config, imdb_id, current_anomalous):
+                            # Refresh data to show updated values
+                            st.session_state.data_loaded = False
+                            st.rerun()
+                else:
+                    if st.button("anomalous", key=button_id, use_container_width=True):
+                        if toggle_anomalous(config, imdb_id, current_anomalous):
+                            # Refresh data to show updated values
+                            st.session_state.data_loaded = False
+                            st.rerun()
             
             # Expandable details section
             with st.expander(f"📋 Details for {training_item.get('media_title', 'Unknown')}", expanded=False):
