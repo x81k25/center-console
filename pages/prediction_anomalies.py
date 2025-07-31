@@ -7,7 +7,7 @@ import time
 
 st.set_page_config(page_title="prediction-anomalies", layout="wide")
 
-# Custom CSS for button styling
+# Custom CSS for button styling with unique class identifiers
 st.markdown("""
 <style>
 /* Blue buttons for would_watch when active */
@@ -17,21 +17,33 @@ div[data-testid="stButton"] > button[kind="primary"] {
     border-color: #1f77b4 !important;
 }
 
-/* Red buttons for would_not_watch when active */
-div[data-testid="stButton"] > button[kind="tertiary"] {
+/* Style for would_not_watch buttons specifically in col9 */
+div[data-testid="column"]:nth-of-type(9) button {
+    background-color: transparent !important;
+    color: #262730 !important;
+    border: 1px solid #d0d0d0 !important;
+}
+
+div[data-testid="column"]:nth-of-type(9) button[kind="tertiary"] {
     background-color: #d62728 !important;
     color: white !important;
     border-color: #d62728 !important;
 }
 
-/* Green buttons for anomalous when active */
-div[data-testid="stButton"] > button[kind="secondary"] {
+/* Style for anomalous buttons specifically in col10 */
+div[data-testid="column"]:nth-of-type(10) button {
+    background-color: transparent !important;
+    color: #262730 !important;
+    border: 1px solid #d0d0d0 !important;
+}
+
+div[data-testid="column"]:nth-of-type(10) .anomalous-active button {
     background-color: #28a745 !important;
     color: white !important;
     border-color: #28a745 !important;
 }
 
-/* Transparent buttons when inactive */
+/* Transparent buttons when inactive (general) */
 div[data-testid="stButton"] > button:not([kind]) {
     background-color: transparent !important;
     color: #262730 !important;
@@ -480,29 +492,34 @@ def main():
             
             with col9:
                 # Would Not Watch button - red when active, transparent when inactive
-                button_type = "tertiary" if current_label == "would_not_watch" else None
-                button_kwargs = {"use_container_width": True}
-                if button_type:
-                    button_kwargs["type"] = button_type
-                
-                if st.button("would_not", key=f"would_not_watch_{imdb_id}", **button_kwargs):
-                    if update_label(config, imdb_id, "would_not_watch", current_label, current_human_labeled):
-                        # Refresh data to show updated values  
-                        st.session_state.data_loaded = False
-                        st.rerun()
+                # Only use tertiary type, not secondary to avoid CSS conflicts
+                if current_label == "would_not_watch":
+                    if st.button("would_not", key=f"would_not_watch_{imdb_id}", type="tertiary", use_container_width=True):
+                        if update_label(config, imdb_id, "would_not_watch", current_label, current_human_labeled):
+                            # Refresh data to show updated values  
+                            st.session_state.data_loaded = False
+                            st.rerun()
+                else:
+                    if st.button("would_not", key=f"would_not_watch_{imdb_id}", use_container_width=True):
+                        if update_label(config, imdb_id, "would_not_watch", current_label, current_human_labeled):
+                            # Refresh data to show updated values  
+                            st.session_state.data_loaded = False
+                            st.rerun()
             
             with col10:
                 # Anomalous button - green when true, transparent when false
-                button_type = "secondary" if current_anomalous else None
-                button_kwargs = {"use_container_width": True}
-                if button_type:
-                    button_kwargs["type"] = button_type
+                # Use a container with custom class for styling
+                if current_anomalous:
+                    st.markdown('<div class="anomalous-active">', unsafe_allow_html=True)
                 
-                if st.button("anomalous", key=f"anomalous_{imdb_id}", **button_kwargs):
+                if st.button("anomalous", key=f"anomalous_{imdb_id}", use_container_width=True):
                     if toggle_anomalous(config, imdb_id, current_anomalous):
                         # Refresh data to show updated values
                         st.session_state.data_loaded = False
                         st.rerun()
+                
+                if current_anomalous:
+                    st.markdown('</div>', unsafe_allow_html=True)
             
             # Expandable details section
             with st.expander(f"📋 Details for {training_item.get('media_title', 'Unknown')}", expanded=False):
