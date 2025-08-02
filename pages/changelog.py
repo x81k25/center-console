@@ -32,6 +32,9 @@ st.markdown("""
 
 ### 🔍 Debug Improvements
 - **Enhanced API Call Display**: Debug URL now shows all active filter parameters including anomalous filter
+
+### 🐛 Bug Fixes
+- **Fixed Anomalous Filter**: Resolved "No training data found" errors when anomalous filter is applied
 """)
 
 st.markdown("---")
