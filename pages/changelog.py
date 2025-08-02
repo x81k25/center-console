@@ -36,6 +36,7 @@ st.markdown("""
 ### 🐛 Bug Fixes
 - **Fixed Anomalous Filter**: Resolved "No training data found" errors when anomalous filter is applied
 - **Fixed Anomalous Filter Display**: Now only displays IMDB IDs that actually match the anomalous filter criteria
+- **Fixed Empty Elements**: Eliminated empty prediction elements when anomalous filter reduces available training data
 """)
 
 st.markdown("---")
