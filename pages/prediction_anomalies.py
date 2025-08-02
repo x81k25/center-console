@@ -64,8 +64,8 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 </style>
 """, unsafe_allow_html=True)
 
-def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: int = 0, limit: int = 20, sort_order: str = "desc") -> Optional[Dict]:
-    """Fetch prediction results with pagination, filtered by cm_value if specified"""
+def fetch_prediction_data(_config: Config, cm_value_filter: str = None, anomalous_filter: str = None, offset: int = 0, limit: int = 20, sort_order: str = "desc") -> Optional[Dict]:
+    """Fetch prediction results with pagination, filtered by cm_value and anomalous if specified"""
     try:
         # Build API parameters
         params = {
@@ -78,6 +78,10 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
         # Add cm_value filter if specified
         if cm_value_filter and cm_value_filter != "all":
             params["cm_value"] = cm_value_filter
+        
+        # Add anomalous filter if specified
+        if anomalous_filter and anomalous_filter != "any":
+            params["anomalous"] = anomalous_filter
         
         response = requests.get(
             f"{_config.base_url}prediction/",
@@ -281,6 +285,8 @@ def main():
     }
     if cm_value_filter and cm_value_filter != "all":
         debug_params["cm_value"] = cm_value_filter
+    if anomalous_filter and anomalous_filter != "any":
+        debug_params["anomalous"] = anomalous_filter
     
     # Construct URL string for display
     base_url = f"{config.base_url}prediction/"
@@ -300,7 +306,8 @@ def main():
         sort_order = "asc" if st.session_state.sort_ascending else "desc"
         result = fetch_prediction_data(
             config, 
-            cm_value_filter=cm_value_filter, 
+            cm_value_filter=cm_value_filter,
+            anomalous_filter=anomalous_filter,
             offset=0, 
             limit=20,
             sort_order=sort_order
@@ -579,7 +586,8 @@ def main():
                     sort_order = "asc" if st.session_state.sort_ascending else "desc"
                     result = fetch_prediction_data(
                         config, 
-                        cm_value_filter=cm_value_filter, 
+                        cm_value_filter=cm_value_filter,
+                        anomalous_filter=anomalous_filter,
                         offset=st.session_state.offset, 
                         limit=20,
                         sort_order=sort_order
