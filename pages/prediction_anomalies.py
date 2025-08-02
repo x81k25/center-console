@@ -216,7 +216,7 @@ def main():
     
     with col1:
         cm_value_filter = st.selectbox(
-            "Filter by Prediction Type:",
+            "Filter by Confusion Matrix Value:",
             options=["all", "fp", "fn", "tp", "tn"],
             format_func=lambda x: {
                 "all": "All Predictions",
