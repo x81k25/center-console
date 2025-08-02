@@ -263,17 +263,7 @@ def main():
         )
     
     with col2:
-        st.write("**Filter Description:**")
-        if cm_value_filter == "fp":
-            st.info("🔴 **False Positives**: Model predicted 'would_watch' but actual label is 'would_not_watch'")
-        elif cm_value_filter == "fn":
-            st.info("🟡 **False Negatives**: Model predicted 'would_not_watch' but actual label is 'would_watch'")
-        elif cm_value_filter == "tp":
-            st.info("🟢 **True Positives**: Model correctly predicted 'would_watch'")
-        elif cm_value_filter == "tn":
-            st.info("⚪ **True Negatives**: Model correctly predicted 'would_not_watch'")
-        else:
-            st.info("📊 **All Predictions**: Showing all prediction results")
+        pass
     
     # Debug: Show API call (full width) - always display current parameters
     sort_order = "asc" if st.session_state.sort_ascending else "desc"
