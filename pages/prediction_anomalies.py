@@ -240,11 +240,9 @@ def main():
         # Update sort order based on selection
         if sort_selection == "pred-proba-asc" and not st.session_state.sort_ascending:
             st.session_state.sort_ascending = True
-            st.session_state.data_loaded = False  # Force reload with new sort
             st.rerun()
         elif sort_selection == "pred-proba-desc" and st.session_state.sort_ascending:
             st.session_state.sort_ascending = False
-            st.session_state.data_loaded = False  # Force reload with new sort
             st.rerun()
         
         # Anomalous filter dropdown
@@ -291,44 +289,29 @@ def main():
     
     st.code(current_api_url, language="bash")
     
-    # Track if we need to reload data
-    need_reload = False
-    
-    # Check if filter changed
-    if cm_value_filter != st.session_state.current_filter:
-        st.session_state.current_filter = cm_value_filter
-        need_reload = True
-    
-    # Check if anomalous filter changed
-    if anomalous_filter != st.session_state.current_anomalous_filter:
-        st.session_state.current_anomalous_filter = anomalous_filter
-        need_reload = True
-    
-    # Check if this is first load or we need to reload
-    if 'data_loaded' not in st.session_state:
-        st.session_state.data_loaded = False
+    # Update filter states
+    st.session_state.current_filter = cm_value_filter
+    st.session_state.current_anomalous_filter = anomalous_filter
     
     st.divider()
     
-    # Always fetch fresh data on page load or when parameters change
-    if not st.session_state.data_loaded or need_reload:
-        with st.spinner("Loading predictions..."):
-            sort_order = "asc" if st.session_state.sort_ascending else "desc"
-            result = fetch_prediction_data(
-                config, 
-                cm_value_filter=cm_value_filter, 
-                offset=0, 
-                limit=20,
-                sort_order=sort_order
-            )
-            
-            if result is None:
-                return
-            
-            st.session_state.predictions = result.get("data", [])
-            st.session_state.has_more = result.get("pagination", {}).get("has_more", False)
-            st.session_state.offset = 20
-            st.session_state.data_loaded = True
+    # Always fetch fresh data on every page load
+    with st.spinner("Loading predictions..."):
+        sort_order = "asc" if st.session_state.sort_ascending else "desc"
+        result = fetch_prediction_data(
+            config, 
+            cm_value_filter=cm_value_filter, 
+            offset=0, 
+            limit=20,
+            sort_order=sort_order
+        )
+        
+        if result is None:
+            return
+        
+        st.session_state.predictions = result.get("data", [])
+        st.session_state.has_more = result.get("pagination", {}).get("has_more", False)
+        st.session_state.offset = 20
     
     predictions = st.session_state.predictions
     
@@ -503,7 +486,6 @@ def main():
                 if st.button("would_watch", key=f"would_watch_{imdb_id}", type=btn_type, use_container_width=True):
                     if update_label(config, imdb_id, "would_watch", current_label, current_human_labeled):
                         # Refresh data to show updated values
-                        st.session_state.data_loaded = False
                         st.rerun()
             
             with col9:
@@ -512,7 +494,6 @@ def main():
                 if st.button("would_not", key=f"would_not_watch_{imdb_id}", type=btn_type, use_container_width=True):
                     if update_label(config, imdb_id, "would_not_watch", current_label, current_human_labeled):
                         # Refresh data to show updated values  
-                        st.session_state.data_loaded = False
                         st.rerun()
             
             with col10:
@@ -521,7 +502,6 @@ def main():
                 if st.button("anomalous", key=f"anomalous_{imdb_id}", type=btn_type, use_container_width=True):
                     if toggle_anomalous(config, imdb_id, current_anomalous):
                         # Refresh data to show updated values
-                        st.session_state.data_loaded = False
                         st.rerun()
             
             # Expandable details section
