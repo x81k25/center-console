@@ -316,8 +316,6 @@ def main():
         st.success("✅ No prediction anomalies found")
         return
     
-    st.subheader(f"Showing {len(predictions)} predictions")
-    
     # Step 2: Extract IMDB IDs and fetch matching training data
     imdb_ids = [pred.get("imdb_id") for pred in predictions if pred.get("imdb_id")]
     training_data = fetch_training_data_for_predictions(config, imdb_ids, anomalous_filter)
@@ -326,15 +324,17 @@ def main():
         st.error("Failed to fetch training data")
         return
     
-    for idx, prediction in enumerate(predictions):
+    # Filter predictions to only include those with matching training data
+    training_imdb_ids = {item.get("imdb_id") for item in training_data.get("data", [])}
+    filtered_predictions = [pred for pred in predictions if pred.get("imdb_id") in training_imdb_ids]
+    
+    st.subheader(f"Showing {len(filtered_predictions)} predictions")
+    
+    for idx, prediction in enumerate(filtered_predictions):
         imdb_id = prediction.get("imdb_id")
         
         # Find training data for this prediction
         training_item = find_training_data_by_imdb(training_data, imdb_id)
-        
-        if not training_item:
-            st.warning(f"No training data found for {imdb_id}")
-            continue
             
         with st.container():
             # Main row with basic info and buttons - added col10 for anomalous button
