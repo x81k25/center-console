@@ -101,7 +101,7 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, anomalou
         st.error(f"Failed to fetch prediction data: {str(e)}")
         return None
 
-def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str], anomalous_filter: str = None) -> Optional[Dict]:
+def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str]) -> Optional[Dict]:
     """Fetch training data for specific IMDB IDs without caching"""
     try:
         if not imdb_ids:
@@ -115,10 +115,6 @@ def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str], an
             "media_type": "movie",
             "limit": len(imdb_ids)  # Set limit to number of IDs we're requesting
         }
-        
-        # Add anomalous filter if specified
-        if anomalous_filter and anomalous_filter != "any":
-            params["anomalous"] = anomalous_filter
         
         response = requests.get(
             _config.training_endpoint,
@@ -318,7 +314,7 @@ def main():
     
     # Step 2: Extract IMDB IDs and fetch matching training data
     imdb_ids = [pred.get("imdb_id") for pred in predictions if pred.get("imdb_id")]
-    training_data = fetch_training_data_for_predictions(config, imdb_ids, anomalous_filter)
+    training_data = fetch_training_data_for_predictions(config, imdb_ids)
     
     if not training_data:
         st.error("Failed to fetch training data")
