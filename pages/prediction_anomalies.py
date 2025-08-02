@@ -97,7 +97,7 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
         st.error(f"Failed to fetch prediction data: {str(e)}")
         return None
 
-def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str]) -> Optional[Dict]:
+def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str], anomalous_filter: str = None) -> Optional[Dict]:
     """Fetch training data for specific IMDB IDs without caching"""
     try:
         if not imdb_ids:
@@ -111,6 +111,10 @@ def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str]) ->
             "media_type": "movie",
             "limit": len(imdb_ids)  # Set limit to number of IDs we're requesting
         }
+        
+        # Add anomalous filter if specified
+        if anomalous_filter and anomalous_filter != "any":
+            params["anomalous"] = anomalous_filter
         
         response = requests.get(
             _config.training_endpoint,
@@ -171,18 +175,11 @@ def toggle_anomalous(_config: Config, imdb_id: str, current_anomalous: bool) -> 
             "anomalous": not current_anomalous
         }
         
-        endpoint = _config.get_training_update_endpoint(imdb_id)
-        st.write(f"DEBUG: Calling {endpoint} with payload: {payload}")
-        
         response = requests.patch(
-            endpoint,
+            _config.get_training_update_endpoint(imdb_id),
             json=payload,
             timeout=_config.api_timeout
         )
-        
-        st.write(f"DEBUG: Response status: {response.status_code}")
-        st.write(f"DEBUG: Response body: {response.text}")
-        
         response.raise_for_status()
         return True
     except Exception as e:
@@ -211,6 +208,8 @@ def main():
         st.session_state.current_filter = "all"
     if 'sort_ascending' not in st.session_state:
         st.session_state.sort_ascending = False
+    if 'current_anomalous_filter' not in st.session_state:
+        st.session_state.current_anomalous_filter = "any"
     
     # Filter selection at the top
     col1, col2 = st.columns([1, 3])
@@ -247,6 +246,19 @@ def main():
             st.session_state.sort_ascending = False
             st.session_state.data_loaded = False  # Force reload with new sort
             st.rerun()
+        
+        # Anomalous filter dropdown
+        anomalous_filter = st.selectbox(
+            "Anomalous:",
+            options=["any", "true", "false"],
+            format_func=lambda x: {
+                "any": "Any",
+                "true": "True",
+                "false": "False"
+            }.get(x, x),
+            index=0,
+            key="anomalous_dropdown"
+        )
     
     with col2:
         st.write("**Filter Description:**")
@@ -287,6 +299,11 @@ def main():
         st.session_state.current_filter = cm_value_filter
         need_reload = True
     
+    # Check if anomalous filter changed
+    if anomalous_filter != st.session_state.current_anomalous_filter:
+        st.session_state.current_anomalous_filter = anomalous_filter
+        need_reload = True
+    
     # Check if this is first load or we need to reload
     if 'data_loaded' not in st.session_state:
         st.session_state.data_loaded = False
@@ -323,7 +340,7 @@ def main():
     
     # Step 2: Extract IMDB IDs and fetch matching training data
     imdb_ids = [pred.get("imdb_id") for pred in predictions if pred.get("imdb_id")]
-    training_data = fetch_training_data_for_predictions(config, imdb_ids)
+    training_data = fetch_training_data_for_predictions(config, imdb_ids, anomalous_filter)
     
     if not training_data:
         st.error("Failed to fetch training data")
