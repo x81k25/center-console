@@ -11,6 +11,18 @@ st.markdown("---")
 st.subheader("August 3, 2025")
 
 st.markdown("""
+### 🆕 New Features
+- **Training Search Page**: Added new page for searching and reviewing training data
+  - Search movies by title or IMDB ID
+  - Real-time search - results update as you type (no search button needed)
+  - Shows top 10 results sorted by most recently updated
+  - View complete training data with all metadata (ratings, votes, genre, etc.)
+  - Update labels (`would_watch` vs `would_not_watch`)
+  - Toggle anomalous status for items
+  - Similar interface to Prediction Anomalies page with expandable details
+  - Dynamic button styling with active/inactive states
+  - Uses the `/rear-diff/movies/` endpoint for comprehensive data
+  
 ### 🔧 Prediction Anomalies Page - API Migration
 - **Migrated to Movies Endpoint**: Transitioned from prediction and training endpoints to the unified `/rear-diff/movies/` endpoint
   - Single API call now fetches all necessary data (training + prediction information combined)
