@@ -7,28 +7,43 @@ import time
 
 st.set_page_config(page_title="prediction-anomalies", layout="wide")
 
-# Custom CSS for button styling
+# Dynamic CSS for button styling
 st.markdown("""
 <style>
-/* Blue buttons for would_watch when active */
-div[data-testid="stButton"] > button[kind="primary"] {
+/* Blue button - would_watch column 8 */
+div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="primary"] {
     background-color: #1f77b4 !important;
     color: white !important;
     border-color: #1f77b4 !important;
 }
+div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="secondary"] {
+    background-color: #2d2d2d !important;
+    color: #1f77b4 !important;
+    border-color: #1f77b4 !important;
+}
 
-/* Red buttons for would_not_watch when active */
-div[data-testid="stButton"] > button[kind="tertiary"] {
+/* Red button - would_not column 9 */
+div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="primary"] {
     background-color: #d62728 !important;
     color: white !important;
     border-color: #d62728 !important;
 }
+div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="secondary"] {
+    background-color: #2d2d2d !important;
+    color: #d62728 !important;
+    border-color: #d62728 !important;
+}
 
-/* Transparent buttons when inactive */
-div[data-testid="stButton"] > button:not([kind]) {
-    background-color: transparent !important;
-    color: #262730 !important;
-    border: 1px solid #d0d0d0 !important;
+/* Green button - anomalous column 10 */
+div[data-testid="stHorizontalBlock"] > div:nth-child(10) button[kind="primary"] {
+    background-color: #2ca02c !important;
+    color: white !important;
+    border-color: #2ca02c !important;
+}
+div[data-testid="stHorizontalBlock"] > div:nth-child(10) button[kind="secondary"] {
+    background-color: #2d2d2d !important;
+    color: #2ca02c !important;
+    border-color: #2ca02c !important;
 }
 
 /* Custom progress bar colors */
@@ -49,13 +64,14 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 </style>
 """, unsafe_allow_html=True)
 
-def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: int = 0, limit: int = 20, sort_order: str = "desc") -> Optional[Dict]:
-    """Fetch prediction results with pagination, filtered by cm_value if specified"""
+def fetch_prediction_data(_config: Config, cm_value_filter: str = None, anomalous_filter: str = None, offset: int = 0, limit: int = 20, sort_order: str = "desc") -> Optional[Dict]:
+    """Fetch movie data with pagination, filtered by cm_value and anomalous if specified"""
     try:
-        # Build API parameters
+        # Build API parameters for movies endpoint
         params = {
             "limit": limit,
             "offset": offset,
+            "media_type": "movie",
             "sort_by": "probability",
             "sort_order": sort_order
         }
@@ -64,8 +80,12 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
         if cm_value_filter and cm_value_filter != "all":
             params["cm_value"] = cm_value_filter
         
+        # Add anomalous filter if specified
+        if anomalous_filter and anomalous_filter != "any":
+            params["anomalous"] = anomalous_filter == "true"
+        
         response = requests.get(
-            f"{_config.base_url}prediction/",
+            f"{_config.base_url}movies/",
             params=params,
             timeout=_config.api_timeout
         )
@@ -79,11 +99,11 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, offset: 
         return data
             
     except Exception as e:
-        st.error(f"Failed to fetch prediction data: {str(e)}")
+        st.error(f"Failed to fetch movie data: {str(e)}")
         return None
 
-def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str]) -> Optional[Dict]:
-    """Fetch training data for specific IMDB IDs without caching"""
+def fetch_media_data_for_predictions(_config: Config, imdb_ids: List[str]) -> Optional[Dict]:
+    """Fetch media data for specific IMDB IDs without caching"""
     try:
         if not imdb_ids:
             return {"data": []}
@@ -98,22 +118,22 @@ def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str]) ->
         }
         
         response = requests.get(
-            _config.training_endpoint,
+            _config.media_endpoint,
             params=params,
             timeout=_config.api_timeout
         )
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        st.error(f"Failed to fetch training data: {str(e)}")
+        st.error(f"Failed to fetch media data: {str(e)}")
         return None
 
-def find_training_data_by_imdb(training_data: Dict, imdb_id: str) -> Optional[Dict]:
-    """Find training data for a specific IMDB ID from fetched data"""
-    if not training_data or "data" not in training_data:
+def find_media_data_by_imdb(media_data: Dict, imdb_id: str) -> Optional[Dict]:
+    """Find media data for a specific IMDB ID from fetched data"""
+    if not media_data or "data" not in media_data:
         return None
     
-    for item in training_data["data"]:
+    for item in media_data["data"]:
         if item.get("imdb_id") == imdb_id:
             return item
     
@@ -122,44 +142,49 @@ def find_training_data_by_imdb(training_data: Dict, imdb_id: str) -> Optional[Di
 def update_label(_config: Config, imdb_id: str, new_label: str, current_label: str, current_human_labeled: bool) -> bool:
     """Update the label for a training item"""
     try:
-        # If new label matches current label, use reviewed endpoint
+        # If new label matches current label, only set reviewed=True
         if new_label == current_label:
-            return mark_as_reviewed(_config, imdb_id)
+            payload = {
+                "imdb_id": imdb_id,
+                "reviewed": True
+            }
+        else:
+            # If labels differ, set label, human_labeled=True, and reviewed=True
+            payload = {
+                "imdb_id": imdb_id,
+                "label": new_label,
+                "human_labeled": True,
+                "reviewed": True
+            }
         
-        # If labels differ, use label endpoint with human_labeled=true
+        response = requests.patch(
+            _config.get_training_update_endpoint(imdb_id),
+            json=payload,
+            timeout=_config.api_timeout
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        st.error(f"Failed to update training item {imdb_id}: {str(e)}")
+        return False
+
+def toggle_anomalous(_config: Config, imdb_id: str, current_anomalous: bool) -> bool:
+    """Toggle the anomalous status for a training item"""
+    try:
         payload = {
             "imdb_id": imdb_id,
-            "label": new_label,
-            "human_labeled": True,
-            "reviewed": True
+            "anomalous": not current_anomalous
         }
         
         response = requests.patch(
-            _config.get_label_update_endpoint(imdb_id),
+            _config.get_training_update_endpoint(imdb_id),
             json=payload,
             timeout=_config.api_timeout
         )
         response.raise_for_status()
         return True
     except Exception as e:
-        st.error(f"Failed to update label for {imdb_id}: {str(e)}")
-        return False
-
-def mark_as_reviewed(_config: Config, imdb_id: str) -> bool:
-    """Mark a training item as reviewed"""
-    try:
-        endpoint = f"{_config.base_url}training/{imdb_id}/reviewed"
-        payload = {"imdb_id": imdb_id, "reviewed": True}
-        
-        response = requests.patch(
-            endpoint,
-            json=payload,
-            timeout=_config.api_timeout
-        )
-        response.raise_for_status()
-        return True
-    except Exception as e:
-        st.error(f"Failed to mark {imdb_id} as reviewed: {str(e)}")
+        st.error(f"Failed to toggle anomalous for {imdb_id}: {str(e)}")
         return False
 
 def main():
@@ -176,21 +201,21 @@ def main():
     # Initialize session state
     if 'predictions' not in st.session_state:
         st.session_state.predictions = []
-    if 'offset' not in st.session_state:
-        st.session_state.offset = 0
-    if 'has_more' not in st.session_state:
-        st.session_state.has_more = True
+    if 'current_limit' not in st.session_state:
+        st.session_state.current_limit = 20
     if 'current_filter' not in st.session_state:
         st.session_state.current_filter = "all"
     if 'sort_ascending' not in st.session_state:
         st.session_state.sort_ascending = False
+    if 'current_anomalous_filter' not in st.session_state:
+        st.session_state.current_anomalous_filter = "any"
     
     # Filter selection at the top
     col1, col2 = st.columns([1, 3])
     
     with col1:
         cm_value_filter = st.selectbox(
-            "Filter by Prediction Type:",
+            "Filter by Confusion Matrix Value:",
             options=["all", "fp", "fn", "tp", "tn"],
             format_func=lambda x: {
                 "all": "All Predictions",
@@ -214,77 +239,78 @@ def main():
         # Update sort order based on selection
         if sort_selection == "pred-proba-asc" and not st.session_state.sort_ascending:
             st.session_state.sort_ascending = True
-            st.session_state.data_loaded = False  # Force reload with new sort
             st.rerun()
         elif sort_selection == "pred-proba-desc" and st.session_state.sort_ascending:
             st.session_state.sort_ascending = False
-            st.session_state.data_loaded = False  # Force reload with new sort
             st.rerun()
+        
+        # Anomalous filter dropdown
+        anomalous_filter = st.selectbox(
+            "Anomalous:",
+            options=["any", "true", "false"],
+            format_func=lambda x: {
+                "any": "Any",
+                "true": "True",
+                "false": "False"
+            }.get(x, x),
+            index=0,
+            key="anomalous_dropdown"
+        )
     
     with col2:
-        st.write("**Filter Description:**")
-        if cm_value_filter == "fp":
-            st.info("🔴 **False Positives**: Model predicted 'would_watch' but actual label is 'would_not_watch'")
-        elif cm_value_filter == "fn":
-            st.info("🟡 **False Negatives**: Model predicted 'would_not_watch' but actual label is 'would_watch'")
-        elif cm_value_filter == "tp":
-            st.info("🟢 **True Positives**: Model correctly predicted 'would_watch'")
-        elif cm_value_filter == "tn":
-            st.info("⚪ **True Negatives**: Model correctly predicted 'would_not_watch'")
-        else:
-            st.info("📊 **All Predictions**: Showing all prediction results")
+        pass
     
     # Debug: Show API call (full width) - always display current parameters
     sort_order = "asc" if st.session_state.sort_ascending else "desc"
     debug_params = {
-        "limit": 20,
+        "limit": st.session_state.current_limit,
         "offset": 0,
         "sort_by": "probability",
         "sort_order": sort_order
     }
     if cm_value_filter and cm_value_filter != "all":
         debug_params["cm_value"] = cm_value_filter
+    if anomalous_filter and anomalous_filter != "any":
+        debug_params["anomalous"] = anomalous_filter
     
     # Construct URL string for display
-    base_url = f"{config.base_url}prediction/"
+    base_url = f"{config.base_url}movies/"
     param_string = "&".join([f"{k}={v}" for k, v in debug_params.items()])
     current_api_url = f"{base_url}?{param_string}"
     
     st.code(current_api_url, language="bash")
     
-    # Track if we need to reload data
-    need_reload = False
-    
-    # Check if filter changed
-    if cm_value_filter != st.session_state.current_filter:
-        st.session_state.current_filter = cm_value_filter
-        need_reload = True
-    
-    # Check if this is first load or we need to reload
-    if 'data_loaded' not in st.session_state:
-        st.session_state.data_loaded = False
+    # Update filter states
+    st.session_state.current_filter = cm_value_filter
+    st.session_state.current_anomalous_filter = anomalous_filter
     
     st.divider()
     
-    # Always fetch fresh data on page load or when parameters change
-    if not st.session_state.data_loaded or need_reload:
-        with st.spinner("Loading predictions..."):
-            sort_order = "asc" if st.session_state.sort_ascending else "desc"
-            result = fetch_prediction_data(
-                config, 
-                cm_value_filter=cm_value_filter, 
-                offset=0, 
-                limit=20,
-                sort_order=sort_order
-            )
-            
-            if result is None:
-                return
-            
-            st.session_state.predictions = result.get("data", [])
-            st.session_state.has_more = result.get("pagination", {}).get("has_more", False)
-            st.session_state.offset = 20
-            st.session_state.data_loaded = True
+    # Check if filters have changed - if so, reset data and limit
+    filter_changed = (
+        st.session_state.current_filter != cm_value_filter or 
+        st.session_state.current_anomalous_filter != anomalous_filter
+    )
+    
+    if filter_changed:
+        st.session_state.current_limit = 20
+    
+    # Always fetch data with current limit
+    with st.spinner("Loading movies..."):
+        sort_order = "asc" if st.session_state.sort_ascending else "desc"
+        result = fetch_prediction_data(
+            config, 
+            cm_value_filter=cm_value_filter,
+            anomalous_filter=anomalous_filter,
+            offset=0, 
+            limit=st.session_state.current_limit,
+            sort_order=sort_order
+        )
+        
+        if result is None:
+            return
+        
+        st.session_state.predictions = result.get("data", [])
     
     predictions = st.session_state.predictions
     
@@ -292,29 +318,17 @@ def main():
         st.success("✅ No prediction anomalies found")
         return
     
-    st.subheader(f"Showing {len(predictions)} predictions")
+    st.subheader(f"Showing {len(predictions)} movies")
     
-    # Step 2: Extract IMDB IDs and fetch matching training data
-    imdb_ids = [pred.get("imdb_id") for pred in predictions if pred.get("imdb_id")]
-    training_data = fetch_training_data_for_predictions(config, imdb_ids)
-    
-    if not training_data:
-        st.error("Failed to fetch training data")
-        return
-    
-    for idx, prediction in enumerate(predictions):
-        imdb_id = prediction.get("imdb_id")
+    for idx, movie_data in enumerate(predictions):
+        imdb_id = movie_data.get("imdb_id")
         
-        # Find training data for this prediction
-        training_item = find_training_data_by_imdb(training_data, imdb_id)
-        
-        if not training_item:
-            st.warning(f"No training data found for {imdb_id}")
-            continue
+        # The movie data already contains all training and prediction information
+        training_item = movie_data
             
         with st.container():
-            # Main row with basic info and buttons
-            col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([2.5, 1, 1, 0.8, 0.6, 1, 1.5, 1.2, 1.2])
+            # Main row with basic info and buttons - added col10 for anomalous button
+            col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns([2.2, 1, 1, 0.8, 0.6, 1, 1.3, 1.1, 1.1, 1.1])
             
             with col1:
                 st.write(f"**{training_item.get('media_title', 'Unknown')}**")
@@ -394,7 +408,7 @@ def main():
             
             with col6:
                 # Show prediction probability as progress bar
-                probability = float(prediction.get('probability', 0))
+                probability = float(movie_data.get('probability', 0))
                 st.progress(probability)
                 st.caption(f"Pred: {probability:.2f}")
             
@@ -439,7 +453,7 @@ def main():
                     genre_display = "NULL"
                 
                 # Add CM value indicator
-                cm_value = prediction.get('cm_value', '')
+                cm_value = movie_data.get('cm_value', '')
                 cm_emoji = {
                     'tp': '🟢',
                     'tn': '⚪', 
@@ -451,31 +465,30 @@ def main():
             
             current_label = training_item.get('label', '')
             current_human_labeled = training_item.get('human_labeled', False)
+            current_anomalous = training_item.get('anomalous', False)
             
             with col8:
-                # Would Watch button - blue when active, transparent when inactive
-                button_type = "primary" if current_label == "would_watch" else None
-                button_kwargs = {"use_container_width": True}
-                if button_type:
-                    button_kwargs["type"] = button_type
-                
-                if st.button("would_watch", key=f"would_watch_{imdb_id}", **button_kwargs):
+                # Would Watch button - dynamic styling based on state
+                btn_type = "primary" if current_label == "would_watch" else "secondary"
+                if st.button("would_watch", key=f"would_watch_{imdb_id}", type=btn_type, use_container_width=True):
                     if update_label(config, imdb_id, "would_watch", current_label, current_human_labeled):
-                        # Remove the updated item from predictions
-                        st.session_state.predictions = [p for p in st.session_state.predictions if p.get("imdb_id") != imdb_id]
+                        # Refresh data to show updated values
                         st.rerun()
             
             with col9:
-                # Would Not Watch button - red when active, transparent when inactive
-                button_type = "tertiary" if current_label == "would_not_watch" else None
-                button_kwargs = {"use_container_width": True}
-                if button_type:
-                    button_kwargs["type"] = button_type
-                
-                if st.button("would_not", key=f"would_not_watch_{imdb_id}", **button_kwargs):
+                # Would Not Watch button - dynamic styling based on state
+                btn_type = "primary" if current_label == "would_not_watch" else "secondary"
+                if st.button("would_not", key=f"would_not_watch_{imdb_id}", type=btn_type, use_container_width=True):
                     if update_label(config, imdb_id, "would_not_watch", current_label, current_human_labeled):
-                        # Remove the updated item from predictions
-                        st.session_state.predictions = [p for p in st.session_state.predictions if p.get("imdb_id") != imdb_id]
+                        # Refresh data to show updated values  
+                        st.rerun()
+            
+            with col10:
+                # Anomalous button - dynamic styling based on state
+                btn_type = "primary" if current_anomalous else "secondary"
+                if st.button("anomalous", key=f"anomalous_{imdb_id}", type=btn_type, use_container_width=True):
+                    if toggle_anomalous(config, imdb_id, current_anomalous):
+                        # Refresh data to show updated values
                         st.rerun()
             
             # Expandable details section
@@ -512,13 +525,13 @@ def main():
                 
                 with detail_col3:
                     st.write("**Prediction Details:**")
-                    st.write(f"• **Prediction:** {'Would Watch' if prediction.get('prediction') == 1 else 'Would Not Watch'}")
-                    st.write(f"• **Probability:** {float(prediction.get('probability', 0)):.4f}")
-                    st.write(f"• **CM Value:** {prediction.get('cm_value', 'NULL').upper()}")
-                    st.write(f"• **Created:** {prediction.get('created_at', 'NULL')}")
+                    st.write(f"• **Prediction:** {'Would Watch' if movie_data.get('prediction') == 1 else 'Would Not Watch'}")
+                    st.write(f"• **Probability:** {float(movie_data.get('probability', 0)):.4f}")
+                    st.write(f"• **CM Value:** {movie_data.get('cm_value', 'NULL').upper()}")
+                    st.write(f"• **Created:** {movie_data.get('prediction_created_at', 'NULL')}")
                     
                     # Explanation of CM value
-                    cm_value = prediction.get('cm_value', '')
+                    cm_value = movie_data.get('cm_value', '')
                     if cm_value == 'tp':
                         st.success("🟢 **True Positive**: Model correctly predicted 'would_watch'")
                     elif cm_value == 'tn':
@@ -545,30 +558,23 @@ def main():
     
     # Load More button
     st.write("")  # Add some spacing
-    if st.session_state.has_more:
+    
+    # Only show load more if we have more results available and haven't hit the 100 limit
+    if st.session_state.current_limit < 100 and len(predictions) == st.session_state.current_limit:
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
             if st.button("🔄 Load More", type="primary", use_container_width=True, key="load_more_btn"):
-                with st.spinner("Loading more predictions..."):
-                    sort_order = "asc" if st.session_state.sort_ascending else "desc"
-                    result = fetch_prediction_data(
-                        config, 
-                        cm_value_filter=cm_value_filter, 
-                        offset=st.session_state.offset, 
-                        limit=20,
-                        sort_order=sort_order
-                    )
-                    
-                    if result and result.get("data"):
-                        new_predictions = result.get("data", [])
-                        st.session_state.predictions.extend(new_predictions)
-                        st.session_state.offset += len(new_predictions)
-                        st.session_state.has_more = result.get("pagination", {}).get("has_more", False)
-                        st.rerun()
-    else:
+                # Increase limit by 20, up to 100
+                st.session_state.current_limit = min(st.session_state.current_limit + 20, 100)
+                st.rerun()
+    elif len(predictions) == 100:
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            st.info("✅ All predictions loaded")
+            st.info("✅ Showing maximum 100 movies")
+    elif len(predictions) < st.session_state.current_limit:
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            st.info("✅ All movies loaded")
 
 if __name__ == "__main__":
     main()
