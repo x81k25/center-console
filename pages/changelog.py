@@ -19,9 +19,9 @@ st.markdown("""
   - View complete training data with all metadata (ratings, votes, genre, etc.)
   - Update labels (`would_watch` vs `would_not_watch`)
   - Toggle anomalous status for items
-  - Similar interface to Prediction Anomalies page with expandable details
+  - Interface similar to Training Backlog page with expandable details
   - Dynamic button styling with active/inactive states
-  - Uses the `/rear-diff/movies/` endpoint for comprehensive data
+  - Now uses the `/rear-diff/training` endpoint with native title search support
   
 ### 🔧 Prediction Anomalies Page - API Migration
 - **Migrated to Movies Endpoint**: Transitioned from prediction and training endpoints to the unified `/rear-diff/movies/` endpoint

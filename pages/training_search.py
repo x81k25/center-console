@@ -10,37 +10,37 @@ st.set_page_config(page_title="training-search", layout="wide")
 # Dynamic CSS for button styling
 st.markdown("""
 <style>
-/* Blue button - would_watch column 8 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="primary"] {
+/* Blue button - would_watch column 7 */
+div[data-testid="stHorizontalBlock"] > div:nth-child(7) button[kind="primary"] {
     background-color: #1f77b4 !important;
     color: white !important;
     border-color: #1f77b4 !important;
 }
-div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="secondary"] {
+div[data-testid="stHorizontalBlock"] > div:nth-child(7) button[kind="secondary"] {
     background-color: #2d2d2d !important;
     color: #1f77b4 !important;
     border-color: #1f77b4 !important;
 }
 
-/* Red button - would_not column 9 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="primary"] {
+/* Red button - would_not column 8 */
+div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="primary"] {
     background-color: #d62728 !important;
     color: white !important;
     border-color: #d62728 !important;
 }
-div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="secondary"] {
+div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="secondary"] {
     background-color: #2d2d2d !important;
     color: #d62728 !important;
     border-color: #d62728 !important;
 }
 
-/* Green button - anomalous column 10 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(10) button[kind="primary"] {
+/* Green button - anomalous column 9 */
+div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="primary"] {
     background-color: #2ca02c !important;
     color: white !important;
     border-color: #2ca02c !important;
 }
-div[data-testid="stHorizontalBlock"] > div:nth-child(10) button[kind="secondary"] {
+div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="secondary"] {
     background-color: #2d2d2d !important;
     color: #2ca02c !important;
     border-color: #2ca02c !important;
@@ -57,21 +57,17 @@ div[data-testid="stColumn"]:nth-child(3) .stProgress > div > div > div > div {
     background-color: #F5C518 !important;
 }
 
-/* Prediction probability - Green */
-div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
-    background-color: #28a745 !important;
-}
 </style>
 """, unsafe_allow_html=True)
 
-def search_movies(_config: Config, search_term: str, search_type: str = "title") -> Optional[Dict]:
-    """Search for movies by title or IMDB ID"""
+def search_training_data(_config: Config, search_term: str, search_type: str = "title") -> Optional[Dict]:
+    """Search for training data by title or IMDB ID"""
     try:
-        # Build API parameters for movies endpoint
+        # Build API parameters for training endpoint
         params = {
             "limit": 10,  # Only top 10 results
             "media_type": "movie",
-            "sort_by": "training_updated_at",
+            "sort_by": "updated_at",
             "sort_order": "desc"
         }
         
@@ -82,7 +78,7 @@ def search_movies(_config: Config, search_term: str, search_type: str = "title")
             params["imdb_id"] = search_term
         
         response = requests.get(
-            f"{_config.base_url}movies/",
+            _config.training_endpoint,
             params=params,
             timeout=_config.api_timeout
         )
@@ -95,7 +91,7 @@ def search_movies(_config: Config, search_term: str, search_type: str = "title")
         return data
             
     except Exception as e:
-        st.error(f"Failed to search movies: {str(e)}")
+        st.error(f"Failed to search training data: {str(e)}")
         return None
 
 def update_label(_config: Config, imdb_id: str, new_label: str, current_label: str, current_human_labeled: bool) -> bool:
@@ -146,19 +142,19 @@ def toggle_anomalous(_config: Config, imdb_id: str, current_anomalous: bool) -> 
         st.error(f"Failed to toggle anomalous for {imdb_id}: {str(e)}")
         return False
 
-def display_movie_row(movie_data: Dict, config: Config, idx: int):
+def display_movie_row(item: Dict, config: Config, idx: int):
     """Display a single movie row with all the controls"""
-    imdb_id = movie_data.get("imdb_id")
+    imdb_id = item.get("imdb_id")
     
     with st.container():
         # Main row with basic info and buttons
-        col1, col2, col3, col4, col5, col6, col7, col8, col9, col10 = st.columns([2.2, 1, 1, 0.8, 0.6, 1, 1.3, 1.1, 1.1, 1.1])
+        col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([3, 1, 1, 0.8, 0.6, 1.5, 1.2, 1.2, 1.2])
         
         with col1:
-            st.write(f"**{movie_data.get('media_title', 'Unknown')}**")
+            st.write(f"**{item.get('media_title', 'Unknown')}**")
         
         with col2:
-            rt_score = movie_data.get('rt_score')
+            rt_score = item.get('rt_score')
             if rt_score is None:
                 st.progress(0.0)
                 st.caption("RT: NULL")
@@ -167,7 +163,7 @@ def display_movie_row(movie_data: Dict, config: Config, idx: int):
                 st.caption(f"RT: {rt_score}%")
         
         with col3:
-            imdb_votes = movie_data.get('imdb_votes')
+            imdb_votes = item.get('imdb_votes')
             if imdb_votes is None:
                 st.progress(0.0)
                 st.caption("IMDB: NULL")
@@ -190,7 +186,7 @@ def display_movie_row(movie_data: Dict, config: Config, idx: int):
                     st.caption(f"IMDB: {imdb_votes}")
         
         with col4:
-            release_year = movie_data.get('release_year')
+            release_year = item.get('release_year')
             if release_year is None:
                 st.progress(0.0)
                 st.caption("Year: NULL")
@@ -219,7 +215,7 @@ def display_movie_row(movie_data: Dict, config: Config, idx: int):
                 # Each letter gets converted to its regional indicator symbol
                 return ''.join(chr(ord(c) + 0x1F1A5) for c in country_code.upper())
             
-            origin_country = movie_data.get('origin_country')
+            origin_country = item.get('origin_country')
             if origin_country and isinstance(origin_country, list):
                 # Show all flags for multiple countries
                 flags = [country_code_to_flag(country) for country in origin_country]
@@ -231,15 +227,6 @@ def display_movie_row(movie_data: Dict, config: Config, idx: int):
             st.write(f"Country: {country_display}")
         
         with col6:
-            # Show prediction probability as progress bar if available
-            probability = movie_data.get('probability')
-            if probability is not None:
-                st.progress(float(probability))
-                st.caption(f"Pred: {float(probability):.2f}")
-            else:
-                st.write("Pred: N/A")
-        
-        with col7:
             def genre_to_emoji(genre):
                 """Convert genre string to emoji"""
                 genre_map = {
@@ -271,7 +258,7 @@ def display_movie_row(movie_data: Dict, config: Config, idx: int):
                 }
                 return genre_map.get(genre, "🎬")  # Default movie emoji for unknown genres
             
-            genres = movie_data.get('genre', [])
+            genres = item.get('genre', [])
             if genres and isinstance(genres, list):
                 # Show all genre emojis
                 genre_emojis = [genre_to_emoji(genre) for genre in genres]
@@ -279,25 +266,13 @@ def display_movie_row(movie_data: Dict, config: Config, idx: int):
             else:
                 genre_display = "NULL"
             
-            # Add CM value indicator if available
-            cm_value = movie_data.get('cm_value', '')
-            cm_emoji = {
-                'tp': '🟢',
-                'tn': '⚪', 
-                'fp': '🔴',
-                'fn': '🟡'
-            }.get(cm_value, '')
-            
-            if cm_emoji:
-                st.write(f"{cm_emoji} {genre_display}")
-            else:
-                st.write(genre_display)
+            st.write(f"Genre: {genre_display}")
         
-        current_label = movie_data.get('label', '')
-        current_human_labeled = movie_data.get('human_labeled', False)
-        current_anomalous = movie_data.get('anomalous', False)
+        current_label = item.get('label', '')
+        current_human_labeled = item.get('human_labeled', False)
+        current_anomalous = item.get('anomalous', False)
         
-        with col8:
+        with col7:
             # Would Watch button - dynamic styling based on state
             btn_type = "primary" if current_label == "would_watch" else "secondary"
             if st.button("would_watch", key=f"would_watch_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
@@ -305,7 +280,7 @@ def display_movie_row(movie_data: Dict, config: Config, idx: int):
                     # Refresh data to show updated values
                     st.rerun()
         
-        with col9:
+        with col8:
             # Would Not Watch button - dynamic styling based on state
             btn_type = "primary" if current_label == "would_not_watch" else "secondary"
             if st.button("would_not", key=f"would_not_watch_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
@@ -313,7 +288,7 @@ def display_movie_row(movie_data: Dict, config: Config, idx: int):
                     # Refresh data to show updated values
                     st.rerun()
         
-        with col10:
+        with col9:
             # Anomalous button - dynamic styling based on state
             btn_type = "primary" if current_anomalous else "secondary"
             if st.button("anomalous", key=f"anomalous_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
@@ -322,70 +297,49 @@ def display_movie_row(movie_data: Dict, config: Config, idx: int):
                     st.rerun()
         
         # Expandable details section
-        with st.expander(f"📋 Details for {movie_data.get('media_title', 'Unknown')}", expanded=False):
-            detail_col1, detail_col2, detail_col3 = st.columns(3)
+        with st.expander(f"📋 Details for {item.get('media_title', 'Unknown')}", expanded=False):
+            detail_col1, detail_col2 = st.columns(2)
             
             with detail_col1:
                 st.write("**Basic Info:**")
-                st.write(f"• **IMDB ID:** {movie_data.get('imdb_id', 'NULL')}")
-                st.write(f"• **TMDB ID:** {movie_data.get('tmdb_id', 'NULL')}")
-                st.write(f"• **Release Year:** {movie_data.get('release_year', 'NULL')}")
-                st.write(f"• **Runtime:** {movie_data.get('runtime', 'NULL')} min")
-                st.write(f"• **Original Language:** {movie_data.get('original_language', 'NULL')}")
-                st.write(f"• **Origin Country:** {movie_data.get('origin_country', 'NULL')}")
+                st.write(f"• **IMDB ID:** {item.get('imdb_id', 'NULL')}")
+                st.write(f"• **TMDB ID:** {item.get('tmdb_id', 'NULL')}")
+                st.write(f"• **Release Year:** {item.get('release_year', 'NULL')}")
+                st.write(f"• **Runtime:** {item.get('runtime', 'NULL')} min")
+                st.write(f"• **Original Language:** {item.get('original_language', 'NULL')}")
+                st.write(f"• **Origin Country:** {item.get('origin_country', 'NULL')}")
                 
                 st.write("**Status:**")
-                st.write(f"• **Current Label:** {movie_data.get('label', 'NULL')}")
-                st.write(f"• **Human Labeled:** {movie_data.get('human_labeled', 'NULL')}")
-                st.write(f"• **Reviewed:** {movie_data.get('reviewed', 'NULL')}")
-                st.write(f"• **Anomalous:** {movie_data.get('anomalous', 'NULL')}")
+                st.write(f"• **Current Label:** {item.get('label', 'NULL')}")
+                st.write(f"• **Human Labeled:** {item.get('human_labeled', 'NULL')}")
+                st.write(f"• **Reviewed:** {item.get('reviewed', 'NULL')}")
+                st.write(f"• **Anomalous:** {item.get('anomalous', 'NULL')}")
             
             with detail_col2:
                 st.write("**Ratings & Scores:**")
-                st.write(f"• **RT Score:** {movie_data.get('rt_score', 'NULL')}")
-                st.write(f"• **IMDB Rating:** {movie_data.get('imdb_rating', 'NULL')}")
-                st.write(f"• **IMDB Votes:** {movie_data.get('imdb_votes', 'NULL')}")
-                st.write(f"• **TMDB Rating:** {movie_data.get('tmdb_rating', 'NULL')}")
-                st.write(f"• **TMDB Votes:** {movie_data.get('tmdb_votes', 'NULL')}")
-                st.write(f"• **Metascore:** {movie_data.get('metascore', 'NULL')}")
+                st.write(f"• **RT Score:** {item.get('rt_score', 'NULL')}")
+                st.write(f"• **IMDB Rating:** {item.get('imdb_rating', 'NULL')}")
+                st.write(f"• **IMDB Votes:** {item.get('imdb_votes', 'NULL')}")
+                st.write(f"• **TMDB Rating:** {item.get('tmdb_rating', 'NULL')}")
+                st.write(f"• **TMDB Votes:** {item.get('tmdb_votes', 'NULL')}")
+                st.write(f"• **Metascore:** {item.get('metascore', 'NULL')}")
                 
                 st.write("**Financial:**")
-                st.write(f"• **Budget:** ${movie_data.get('budget', 'NULL'):,}" if movie_data.get('budget') else "• **Budget:** NULL")
-                st.write(f"• **Revenue:** ${movie_data.get('revenue', 'NULL'):,}" if movie_data.get('revenue') else "• **Revenue:** NULL")
+                st.write(f"• **Budget:** ${item.get('budget', 'NULL'):,}" if item.get('budget') else "• **Budget:** NULL")
+                st.write(f"• **Revenue:** ${item.get('revenue', 'NULL'):,}" if item.get('revenue') else "• **Revenue:** NULL")
             
-            with detail_col3:
-                st.write("**Prediction Details:**")
-                if movie_data.get('prediction') is not None:
-                    st.write(f"• **Prediction:** {'Would Watch' if movie_data.get('prediction') == 1 else 'Would Not Watch'}")
-                    st.write(f"• **Probability:** {float(movie_data.get('probability', 0)):.4f}")
-                    st.write(f"• **CM Value:** {movie_data.get('cm_value', 'NULL').upper()}")
-                    st.write(f"• **Created:** {movie_data.get('prediction_created_at', 'NULL')}")
-                    
-                    # Explanation of CM value
-                    cm_value = movie_data.get('cm_value', '')
-                    if cm_value == 'tp':
-                        st.success("🟢 **True Positive**: Model correctly predicted 'would_watch'")
-                    elif cm_value == 'tn':
-                        st.info("⚪ **True Negative**: Model correctly predicted 'would_not_watch'")
-                    elif cm_value == 'fp':
-                        st.error("🔴 **False Positive**: Model predicted 'would_watch' but actual is 'would_not_watch'")
-                    elif cm_value == 'fn':
-                        st.warning("🟡 **False Negative**: Model predicted 'would_not_watch' but actual is 'would_watch'")
-                else:
-                    st.write("• **No prediction data available**")
-            
-            st.write("**Additional Info:**")
-            st.write(f"• **Genres:** {', '.join(movie_data.get('genre', [])) if movie_data.get('genre') else 'NULL'}")
-            st.write(f"• **Production Status:** {movie_data.get('production_status', 'NULL')}")
-            st.write(f"• **Tagline:** {movie_data.get('tagline', 'NULL')}")
-            
-            if movie_data.get('overview'):
-                st.write("**Overview:**")
-                st.write(movie_data.get('overview'))
-            
-            st.write("**Timestamps:**")
-            st.write(f"• **Created:** {movie_data.get('created_at', 'NULL')}")
-            st.write(f"• **Updated:** {movie_data.get('updated_at', 'NULL')}")
+                st.write("**Additional Info:**")
+                st.write(f"• **Genres:** {', '.join(item.get('genre', [])) if item.get('genre') else 'NULL'}")
+                st.write(f"• **Production Status:** {item.get('production_status', 'NULL')}")
+                st.write(f"• **Tagline:** {item.get('tagline', 'NULL')}")
+                
+                if item.get('overview'):
+                    st.write("**Overview:**")
+                    st.write(item.get('overview'))
+                
+                st.write("**Timestamps:**")
+                st.write(f"• **Created:** {item.get('created_at', 'NULL')}")
+                st.write(f"• **Updated:** {item.get('updated_at', 'NULL')}")
         
         st.divider()
 
@@ -414,23 +368,23 @@ def main():
     # Perform search when input changes
     if search_term:
         with st.spinner("Searching..."):
-            result = search_movies(config, search_term, search_type)
+            result = search_training_data(config, search_term, search_type)
         
         if result is not None:
-            movies = result.get("data", [])
+            items = result.get("data", [])
             
             # Display API call debug info
             if 'debug_api_call' in st.session_state:
                 st.code(st.session_state.debug_api_call, language="bash")
             
-            if not movies:
+            if not items:
                 st.info("✅ No movies found matching your search criteria")
             else:
-                st.subheader(f"Showing top {len(movies)} movie(s)")
+                st.subheader(f"Showing top {len(items)} movie(s)")
                 
                 # Display each movie
-                for idx, movie_data in enumerate(movies):
-                    display_movie_row(movie_data, config, idx)
+                for idx, item in enumerate(items):
+                    display_movie_row(item, config, idx)
     else:
         st.info("Start typing to search for movies...")
 
