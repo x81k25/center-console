@@ -124,6 +124,14 @@ Select a page from the sidebar to get started, or click the links below:
 - Display prediction probability and actual vs predicted labels
 - Filter by: All, False Positives, False Negatives, True Positives, True Negatives
 
+### 🔎 [Training Search](training-search)
+**Search and Review Training Data**
+- Search movies by title or IMDB ID
+- View complete training data with all metadata
+- Update labels (`would_watch` vs `would_not_watch`)
+- Toggle anomalous status for items
+- Similar interface to Prediction Anomalies page
+
 ### 🎬 [Media Library](get-media)
 **Media Collection Browser**
 - Browse complete media collection with pagination
