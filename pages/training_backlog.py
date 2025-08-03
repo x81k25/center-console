@@ -7,28 +7,31 @@ import time
 
 st.set_page_config(page_title="training-backlog", layout="wide")
 
-# Custom CSS for button styling
+# Dynamic CSS for button styling
 st.markdown("""
 <style>
-/* Blue buttons for would_watch when active */
-div[data-testid="stButton"] > button[kind="primary"] {
+/* Blue button - would_watch column 7 */
+div[data-testid="stHorizontalBlock"] > div:nth-child(7) button[kind="primary"] {
     background-color: #1f77b4 !important;
     color: white !important;
     border-color: #1f77b4 !important;
 }
+div[data-testid="stHorizontalBlock"] > div:nth-child(7) button[kind="secondary"] {
+    background-color: #2d2d2d !important;
+    color: #1f77b4 !important;
+    border-color: #1f77b4 !important;
+}
 
-/* Red buttons for would_not_watch when active */
-div[data-testid="stButton"] > button[kind="tertiary"] {
+/* Red button - would_not column 8 */
+div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="primary"] {
     background-color: #d62728 !important;
     color: white !important;
     border-color: #d62728 !important;
 }
-
-/* Transparent buttons when inactive */
-div[data-testid="stButton"] > button:not([kind]) {
-    background-color: transparent !important;
-    color: #262730 !important;
-    border: 1px solid #d0d0d0 !important;
+div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="secondary"] {
+    background-color: #2d2d2d !important;
+    color: #d62728 !important;
+    border-color: #d62728 !important;
 }
 
 /* Custom progress bar colors */
@@ -71,44 +74,30 @@ def fetch_training_data(_config: Config, page: int = 1, limit: int = 20) -> Opti
 def update_label(_config: Config, imdb_id: str, new_label: str, current_label: str, current_human_labeled: bool) -> bool:
     """Update the label for a training item"""
     try:
-        # If new label matches current label, use reviewed endpoint
+        # If new label matches current label, only set reviewed=True
         if new_label == current_label:
-            return mark_as_reviewed(_config, imdb_id)
-        
-        # If labels differ, use label endpoint with human_labeled=true
-        payload = {
-            "imdb_id": imdb_id,
-            "label": new_label,
-            "human_labeled": True,
-            "reviewed": True
-        }
+            payload = {
+                "imdb_id": imdb_id,
+                "reviewed": True
+            }
+        else:
+            # If labels differ, set label, human_labeled=True, and reviewed=True
+            payload = {
+                "imdb_id": imdb_id,
+                "label": new_label,
+                "human_labeled": True,
+                "reviewed": True
+            }
         
         response = requests.patch(
-            _config.get_label_update_endpoint(imdb_id),
+            _config.get_training_update_endpoint(imdb_id),
             json=payload,
             timeout=_config.api_timeout
         )
         response.raise_for_status()
         return True
     except Exception as e:
-        st.error(f"Failed to update label for {imdb_id}: {str(e)}")
-        return False
-
-def mark_as_reviewed(_config: Config, imdb_id: str) -> bool:
-    """Mark a training item as reviewed"""
-    try:
-        endpoint = f"{_config.base_url}training/{imdb_id}/reviewed"
-        payload = {"imdb_id": imdb_id, "reviewed": True}
-        
-        response = requests.patch(
-            endpoint,
-            json=payload,
-            timeout=_config.api_timeout
-        )
-        response.raise_for_status()
-        return True
-    except Exception as e:
-        st.error(f"Failed to mark {imdb_id} as reviewed: {str(e)}")
+        st.error(f"Failed to update training item {imdb_id}: {str(e)}")
         return False
 
 def main():
@@ -273,25 +262,17 @@ def main():
             current_human_labeled = item.get('human_labeled', False)
             
             with col7:
-                # Would Watch button - blue when active, transparent when inactive
-                button_type = "primary" if current_label == "would_watch" else None
-                button_kwargs = {"use_container_width": True}
-                if button_type:
-                    button_kwargs["type"] = button_type
-                
-                if st.button("would_watch", key=f"would_watch_{item.get('imdb_id')}", **button_kwargs):
+                # Would Watch button - dynamic styling based on state
+                btn_type = "primary" if current_label == "would_watch" else "secondary"
+                if st.button("would_watch", key=f"would_watch_{item.get('imdb_id')}", type=btn_type, use_container_width=True):
                     if update_label(config, item.get('imdb_id'), "would_watch", current_label, current_human_labeled):
                         st.cache_data.clear()
                         st.rerun()
             
             with col8:
-                # Would Not Watch button - red when active, transparent when inactive
-                button_type = "tertiary" if current_label == "would_not_watch" else None
-                button_kwargs = {"use_container_width": True}
-                if button_type:
-                    button_kwargs["type"] = button_type
-                
-                if st.button("would_not", key=f"would_not_watch_{item.get('imdb_id')}", **button_kwargs):
+                # Would Not Watch button - dynamic styling based on state
+                btn_type = "primary" if current_label == "would_not_watch" else "secondary"
+                if st.button("would_not", key=f"would_not_watch_{item.get('imdb_id')}", type=btn_type, use_container_width=True):
                     if update_label(config, item.get('imdb_id'), "would_not_watch", current_label, current_human_labeled):
                         st.cache_data.clear()
                         st.rerun()
