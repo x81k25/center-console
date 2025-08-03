@@ -7,6 +7,26 @@ st.title("Changelog")
 
 st.markdown("---")
 
+# August 3, 2025
+st.subheader("August 3, 2025")
+
+st.markdown("""
+### 🔧 Prediction Anomalies Page - API Migration
+- **Migrated to Movies Endpoint**: Transitioned from prediction and training endpoints to the unified `/rear-diff/movies/` endpoint
+  - Single API call now fetches all necessary data (training + prediction information combined)
+  - Improved performance by eliminating redundant API calls
+  - Maintains all existing filtering capabilities (cm_value, anomalous, etc.)
+- **Simplified Data Flow**: Removed complex data merging logic since movies endpoint provides unified data structure
+- **Enhanced Load More Functionality**: Updated pagination to work correctly with new endpoint
+- **Preserved Training Updates**: All PATCH operations to training endpoint remain unchanged as requested
+
+### 🐛 Bug Fixes
+- **Fixed Load More Button**: Resolved pagination issues when loading additional results
+- **Improved Filter Handling**: Better state management for filters during pagination
+""")
+
+st.markdown("---")
+
 # August 2, 2025
 st.subheader("August 2, 2025")
 

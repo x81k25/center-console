@@ -23,11 +23,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 @st.cache_data(ttl=300)
-def fetch_media_data(_config: Config, page: int = 1, limit: int = 20) -> Optional[Dict]:
+def fetch_media_data(_config: Config, limit: int = 100) -> Optional[Dict]:
     """Fetch media data from the API with caching"""
     try:
         params = {
-            "page": page,
             "limit": limit,
             "sort_by": "updated_at",
             "sort_order": "desc"
@@ -55,17 +54,9 @@ def main():
     
     st.title("get-media")
     
-    # Add pagination controls
-    col1, col2, col3 = st.columns([1, 1, 8])
-    with col1:
-        page = st.number_input("Page", min_value=1, value=1, step=1)
-    with col2:
-        limit = st.selectbox("Items per page", [10, 20, 50], index=1)
-    
     # Debug: Show API call with current parameters
     media_params = {
-        "page": page,
-        "limit": limit,
+        "limit": 100,
         "sort_by": "updated_at",
         "sort_order": "desc"
     }
@@ -73,17 +64,15 @@ def main():
     api_url = f"{config.media_endpoint}?{param_string}"
     st.code(api_url, language="bash")
     
-    data = fetch_media_data(config, page=page, limit=limit)
+    data = fetch_media_data(config, limit=100)
     
     if not data:
         return
     
     items = data.get("data", [])
-    total_items = data.get("total", 0)
-    total_pages = data.get("pages", 1)
     
     # Display metadata
-    st.info(f"Showing {len(items)} items | Total: {total_items} | Page {page} of {total_pages}")
+    st.info(f"Showing {len(items)} media items (limit: 100)")
     
     if not items:
         st.info("No media items found")

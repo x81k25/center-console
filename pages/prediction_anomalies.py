@@ -65,12 +65,13 @@ div[data-testid="stColumn"]:nth-child(6) .stProgress > div > div > div > div {
 """, unsafe_allow_html=True)
 
 def fetch_prediction_data(_config: Config, cm_value_filter: str = None, anomalous_filter: str = None, offset: int = 0, limit: int = 20, sort_order: str = "desc") -> Optional[Dict]:
-    """Fetch prediction results with pagination, filtered by cm_value and anomalous if specified"""
+    """Fetch movie data with pagination, filtered by cm_value and anomalous if specified"""
     try:
-        # Build API parameters
+        # Build API parameters for movies endpoint
         params = {
             "limit": limit,
             "offset": offset,
+            "media_type": "movie",
             "sort_by": "probability",
             "sort_order": sort_order
         }
@@ -81,10 +82,10 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, anomalou
         
         # Add anomalous filter if specified
         if anomalous_filter and anomalous_filter != "any":
-            params["anomalous"] = anomalous_filter
+            params["anomalous"] = anomalous_filter == "true"
         
         response = requests.get(
-            f"{_config.base_url}prediction/",
+            f"{_config.base_url}movies/",
             params=params,
             timeout=_config.api_timeout
         )
@@ -98,11 +99,11 @@ def fetch_prediction_data(_config: Config, cm_value_filter: str = None, anomalou
         return data
             
     except Exception as e:
-        st.error(f"Failed to fetch prediction data: {str(e)}")
+        st.error(f"Failed to fetch movie data: {str(e)}")
         return None
 
-def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str]) -> Optional[Dict]:
-    """Fetch training data for specific IMDB IDs without caching"""
+def fetch_media_data_for_predictions(_config: Config, imdb_ids: List[str]) -> Optional[Dict]:
+    """Fetch media data for specific IMDB IDs without caching"""
     try:
         if not imdb_ids:
             return {"data": []}
@@ -117,22 +118,22 @@ def fetch_training_data_for_predictions(_config: Config, imdb_ids: List[str]) ->
         }
         
         response = requests.get(
-            _config.training_endpoint,
+            _config.media_endpoint,
             params=params,
             timeout=_config.api_timeout
         )
         response.raise_for_status()
         return response.json()
     except Exception as e:
-        st.error(f"Failed to fetch training data: {str(e)}")
+        st.error(f"Failed to fetch media data: {str(e)}")
         return None
 
-def find_training_data_by_imdb(training_data: Dict, imdb_id: str) -> Optional[Dict]:
-    """Find training data for a specific IMDB ID from fetched data"""
-    if not training_data or "data" not in training_data:
+def find_media_data_by_imdb(media_data: Dict, imdb_id: str) -> Optional[Dict]:
+    """Find media data for a specific IMDB ID from fetched data"""
+    if not media_data or "data" not in media_data:
         return None
     
-    for item in training_data["data"]:
+    for item in media_data["data"]:
         if item.get("imdb_id") == imdb_id:
             return item
     
@@ -200,10 +201,8 @@ def main():
     # Initialize session state
     if 'predictions' not in st.session_state:
         st.session_state.predictions = []
-    if 'offset' not in st.session_state:
-        st.session_state.offset = 0
-    if 'has_more' not in st.session_state:
-        st.session_state.has_more = True
+    if 'current_limit' not in st.session_state:
+        st.session_state.current_limit = 20
     if 'current_filter' not in st.session_state:
         st.session_state.current_filter = "all"
     if 'sort_ascending' not in st.session_state:
@@ -264,7 +263,7 @@ def main():
     # Debug: Show API call (full width) - always display current parameters
     sort_order = "asc" if st.session_state.sort_ascending else "desc"
     debug_params = {
-        "limit": 20,
+        "limit": st.session_state.current_limit,
         "offset": 0,
         "sort_by": "probability",
         "sort_order": sort_order
@@ -275,7 +274,7 @@ def main():
         debug_params["anomalous"] = anomalous_filter
     
     # Construct URL string for display
-    base_url = f"{config.base_url}prediction/"
+    base_url = f"{config.base_url}movies/"
     param_string = "&".join([f"{k}={v}" for k, v in debug_params.items()])
     current_api_url = f"{base_url}?{param_string}"
     
@@ -287,15 +286,24 @@ def main():
     
     st.divider()
     
-    # Always fetch fresh data on every page load
-    with st.spinner("Loading predictions..."):
+    # Check if filters have changed - if so, reset data and limit
+    filter_changed = (
+        st.session_state.current_filter != cm_value_filter or 
+        st.session_state.current_anomalous_filter != anomalous_filter
+    )
+    
+    if filter_changed:
+        st.session_state.current_limit = 20
+    
+    # Always fetch data with current limit
+    with st.spinner("Loading movies..."):
         sort_order = "asc" if st.session_state.sort_ascending else "desc"
         result = fetch_prediction_data(
             config, 
             cm_value_filter=cm_value_filter,
             anomalous_filter=anomalous_filter,
             offset=0, 
-            limit=20,
+            limit=st.session_state.current_limit,
             sort_order=sort_order
         )
         
@@ -303,8 +311,6 @@ def main():
             return
         
         st.session_state.predictions = result.get("data", [])
-        st.session_state.has_more = result.get("pagination", {}).get("has_more", False)
-        st.session_state.offset = 20
     
     predictions = st.session_state.predictions
     
@@ -312,25 +318,13 @@ def main():
         st.success("✅ No prediction anomalies found")
         return
     
-    # Step 2: Extract IMDB IDs and fetch matching training data
-    imdb_ids = [pred.get("imdb_id") for pred in predictions if pred.get("imdb_id")]
-    training_data = fetch_training_data_for_predictions(config, imdb_ids)
+    st.subheader(f"Showing {len(predictions)} movies")
     
-    if not training_data:
-        st.error("Failed to fetch training data")
-        return
-    
-    # Filter predictions to only include those with matching training data
-    training_imdb_ids = {item.get("imdb_id") for item in training_data.get("data", [])}
-    filtered_predictions = [pred for pred in predictions if pred.get("imdb_id") in training_imdb_ids]
-    
-    st.subheader(f"Showing {len(filtered_predictions)} predictions")
-    
-    for idx, prediction in enumerate(filtered_predictions):
-        imdb_id = prediction.get("imdb_id")
+    for idx, movie_data in enumerate(predictions):
+        imdb_id = movie_data.get("imdb_id")
         
-        # Find training data for this prediction
-        training_item = find_training_data_by_imdb(training_data, imdb_id)
+        # The movie data already contains all training and prediction information
+        training_item = movie_data
             
         with st.container():
             # Main row with basic info and buttons - added col10 for anomalous button
@@ -414,7 +408,7 @@ def main():
             
             with col6:
                 # Show prediction probability as progress bar
-                probability = float(prediction.get('probability', 0))
+                probability = float(movie_data.get('probability', 0))
                 st.progress(probability)
                 st.caption(f"Pred: {probability:.2f}")
             
@@ -459,7 +453,7 @@ def main():
                     genre_display = "NULL"
                 
                 # Add CM value indicator
-                cm_value = prediction.get('cm_value', '')
+                cm_value = movie_data.get('cm_value', '')
                 cm_emoji = {
                     'tp': '🟢',
                     'tn': '⚪', 
@@ -531,13 +525,13 @@ def main():
                 
                 with detail_col3:
                     st.write("**Prediction Details:**")
-                    st.write(f"• **Prediction:** {'Would Watch' if prediction.get('prediction') == 1 else 'Would Not Watch'}")
-                    st.write(f"• **Probability:** {float(prediction.get('probability', 0)):.4f}")
-                    st.write(f"• **CM Value:** {prediction.get('cm_value', 'NULL').upper()}")
-                    st.write(f"• **Created:** {prediction.get('created_at', 'NULL')}")
+                    st.write(f"• **Prediction:** {'Would Watch' if movie_data.get('prediction') == 1 else 'Would Not Watch'}")
+                    st.write(f"• **Probability:** {float(movie_data.get('probability', 0)):.4f}")
+                    st.write(f"• **CM Value:** {movie_data.get('cm_value', 'NULL').upper()}")
+                    st.write(f"• **Created:** {movie_data.get('prediction_created_at', 'NULL')}")
                     
                     # Explanation of CM value
-                    cm_value = prediction.get('cm_value', '')
+                    cm_value = movie_data.get('cm_value', '')
                     if cm_value == 'tp':
                         st.success("🟢 **True Positive**: Model correctly predicted 'would_watch'")
                     elif cm_value == 'tn':
@@ -564,31 +558,23 @@ def main():
     
     # Load More button
     st.write("")  # Add some spacing
-    if st.session_state.has_more:
+    
+    # Only show load more if we have more results available and haven't hit the 100 limit
+    if st.session_state.current_limit < 100 and len(predictions) == st.session_state.current_limit:
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
             if st.button("🔄 Load More", type="primary", use_container_width=True, key="load_more_btn"):
-                with st.spinner("Loading more predictions..."):
-                    sort_order = "asc" if st.session_state.sort_ascending else "desc"
-                    result = fetch_prediction_data(
-                        config, 
-                        cm_value_filter=cm_value_filter,
-                        anomalous_filter=anomalous_filter,
-                        offset=st.session_state.offset, 
-                        limit=20,
-                        sort_order=sort_order
-                    )
-                    
-                    if result and result.get("data"):
-                        new_predictions = result.get("data", [])
-                        st.session_state.predictions.extend(new_predictions)
-                        st.session_state.offset += len(new_predictions)
-                        st.session_state.has_more = result.get("pagination", {}).get("has_more", False)
-                        st.rerun()
-    else:
+                # Increase limit by 20, up to 100
+                st.session_state.current_limit = min(st.session_state.current_limit + 20, 100)
+                st.rerun()
+    elif len(predictions) == 100:
         col1, col2, col3 = st.columns([1, 1, 1])
         with col2:
-            st.info("✅ All predictions loaded")
+            st.info("✅ Showing maximum 100 movies")
+    elif len(predictions) < st.session_state.current_limit:
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col2:
+            st.info("✅ All movies loaded")
 
 if __name__ == "__main__":
     main()
