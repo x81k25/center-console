@@ -7,7 +7,7 @@ import time
 
 st.set_page_config(
     page_title="get-media",
-    page_icon="🎬",
+    page_icon="./favicon/favicon.ico",
     layout="wide"
 )
 

@@ -5,7 +5,11 @@ from config import Config
 from typing import Dict, List, Optional
 import time
 
-st.set_page_config(page_title="training-backlog", layout="wide")
+st.set_page_config(
+    page_title="training-backlog", 
+    page_icon="./favicon/android-chrome-192x192.png",
+    layout="wide"
+)
 
 # Dynamic CSS for button styling
 st.markdown("""

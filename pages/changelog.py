@@ -1,7 +1,11 @@
 import streamlit as st
 from datetime import datetime
 
-st.set_page_config(page_title="changelog", layout="wide")
+st.set_page_config(
+    page_title="changelog", 
+    page_icon="./favicon/android-chrome-192x192.png",
+    layout="wide"
+  )
 
 st.title("Changelog")
 

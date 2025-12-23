@@ -1,8 +1,8 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Center Console",
-    page_icon="🎬",
+    page_title="center-console",
+    page_icon="./favicon/android-chrome-192x192.png",
     layout="wide"
 )
 
