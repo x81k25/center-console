@@ -4,11 +4,15 @@ A Streamlit-based web application for managing the Rear Differential media proce
 
 ## Features
 
-### 🎬 Media Pipeline Management
+### 🎬 Media Browser & Pipeline Management
+- Browse most recent 20 media items by default
 - Search media items by hash or title
+- Error count indicator with filter to show only errored items
 - View and update pipeline status (`ingested`, `parsed`, `rejected`, `downloading`, `complete`, etc.)
 - Manage error conditions and rejection status
-- Color-coded status indicators with icons
+- Re-ingest button to reset items to initial pipeline state
+- Soft delete functionality to remove items from processing
+- Color-coded status indicators (media_type, pipeline_status, error_status, rejection_status)
 
 ### 📚 Training Backlog Review
 - Review unreviewed movies from the training dataset
@@ -25,11 +29,6 @@ A Streamlit-based web application for managing the Rear Differential media proce
 - Filter by: All, False Positives, False Negatives, True Positives, True Negatives
 - Sortable by prediction confidence (high to low / low to high)
 
-### 🎬 Media Library Browser
-- Browse complete media collection with pagination
-- View detailed metadata for movies and TV shows
-- Pipeline status tracking and error monitoring
-- Search and filter capabilities
 
 ### 🗃️ Database Migration History
 - View Flyway migration history and status
@@ -143,7 +142,8 @@ For Kubernetes deployment on bare-metal clusters:
 
 **Media Data**:
 - `GET /rear-diff/media/` - Browse media collection
-- `PATCH /rear-diff/media/{hash_id}/pipeline` - Update pipeline status
+- `PATCH /rear-diff/media/{hash}/pipeline` - Update pipeline status
+- `PATCH /rear-diff/media/{hash}/soft_delete` - Soft delete media entry
 
 **System Health**:
 - `GET /rear-diff/flyway/` - Database migration history
@@ -169,9 +169,10 @@ For Kubernetes deployment on bare-metal clusters:
 ├── pages/                    # Streamlit pages
 │   ├── training_backlog.py   # Training data review interface
 │   ├── prediction_anomalies.py # ML prediction analysis
-│   ├── get_media.py          # Media collection browser
+│   ├── training_search.py    # Search training data by title/IMDB ID
+│   ├── media.py              # Media browser & pipeline management
 │   ├── get_flyway_migrations.py # Database migration history
-│   └── media_pipeline.py     # Pipeline status management
+│   └── changelog.py          # Version history
 ├── config.py                 # Configuration management
 ├── pyproject.toml           # Project dependencies and metadata
 ├── uv.lock                  # Dependency lock file
@@ -195,11 +196,13 @@ For Kubernetes deployment on bare-metal clusters:
 3. Review model predictions vs actual labels
 4. Update labels for mispredicted items to improve training data
 
-### Media Library Page
-1. Browse paginated media collection
-2. Adjust page size and navigate through pages
-3. View detailed metadata and pipeline status
-4. Monitor processing status and errors
+### Media Page
+1. Browse most recent 20 media items by default
+2. Search by hash (default) or title
+3. Filter to show only items with errors using the "Show Errors" button
+4. Click "Edit" to update pipeline status, error status, and rejection status
+5. Use "Re-ingest" to reset an item to initial state (ingested, no error, unfiltered)
+6. Use "Delete" (soft delete) to remove items from processing
 
 ### API Debug Features
 - Each page shows the exact API URL being called
