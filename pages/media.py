@@ -23,6 +23,51 @@ st.markdown("""
 .status-processed { color: #007bff; font-weight: bold; }
 .status-failed { color: #dc3545; font-weight: bold; }
 .status-pending { color: #ffc107; font-weight: bold; }
+
+/* Reduce spacing between captions and values */
+.stCaption, [data-testid="stCaptionContainer"], small {
+    margin-bottom: -15px !important;
+    padding-bottom: 0 !important;
+}
+[data-testid="stMarkdownContainer"] p {
+    margin-bottom: 0.5rem !important;
+}
+
+/* Reduce divider spacing */
+hr {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* Center button text vertically */
+[data-testid="stBaseButton-secondary"] p,
+[data-testid="stBaseButton-primary"] p,
+.stButton button p {
+    margin: 0 !important;
+    padding-top: 2px !important;
+}
+
+/* Re-ingest button styling (green) */
+[data-testid="stHorizontalBlock"] [class*="st-key-reingest_"] button {
+    background-color: #28a745 !important;
+    color: white !important;
+    border: none !important;
+}
+[data-testid="stHorizontalBlock"] [class*="st-key-reingest_"] button:hover {
+    background-color: #218838 !important;
+    color: white !important;
+}
+
+/* Delete button styling (red) */
+[data-testid="stHorizontalBlock"] [class*="st-key-delete_"] button {
+    background-color: #dc3545 !important;
+    color: white !important;
+    border: none !important;
+}
+[data-testid="stHorizontalBlock"] [class*="st-key-delete_"] button:hover {
+    background-color: #c82333 !important;
+    color: white !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -80,27 +125,53 @@ def make_soft_delete_call(config: Config, hash_id: str):
         return False, str(e)
 
 
-def fetch_media_data(config: Config, limit: int = 20, search_term: str = None, search_type: str = "title", error_status: bool = None) -> Optional[Dict]:
-    """Fetch media data from the API"""
+def fetch_media_data(config: Config, limit: int = 20, offset: int = 0, search_term: str = None, search_type: str = "title", error_status: bool = None, pipeline_statuses: List[str] = None) -> Optional[Dict]:
+    """Fetch media data from the API. If multiple pipeline_statuses are provided, makes separate calls and merges results."""
     try:
-        params = {
+        base_params = {
             "limit": limit,
+            "offset": offset,
             "sort_by": "updated_at",
             "sort_order": "desc"
         }
 
         if search_term:
             if search_type == "hash":
-                params["hash"] = search_term
+                base_params["hash"] = search_term
             else:
-                params["media_title"] = search_term
+                base_params["media_title"] = search_term
 
         if error_status is not None:
-            params["error_status"] = str(error_status).lower()
+            base_params["error_status"] = str(error_status).lower()
+
+        # If multiple pipeline statuses, make separate calls and merge
+        if pipeline_statuses and len(pipeline_statuses) > 1:
+            all_items = []
+            seen_hashes = set()
+            for status in pipeline_statuses:
+                params = {**base_params, "pipeline_status": status}
+                response = requests.get(
+                    config.media_endpoint,
+                    params=params,
+                    timeout=config.api_timeout
+                )
+                response.raise_for_status()
+                data = response.json()
+                for item in data.get("data", []):
+                    if item.get("hash") not in seen_hashes:
+                        seen_hashes.add(item.get("hash"))
+                        all_items.append(item)
+            # Sort by updated_at desc and limit
+            all_items.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+            return {"data": all_items[:limit]}
+
+        # Single status or no status filter
+        if pipeline_statuses and len(pipeline_statuses) == 1:
+            base_params["pipeline_status"] = pipeline_statuses[0]
 
         response = requests.get(
             config.media_endpoint,
-            params=params,
+            params=base_params,
             timeout=config.api_timeout
         )
         response.raise_for_status()
@@ -132,18 +203,20 @@ def fetch_error_count(config: Config) -> int:
 def display_media_item(item: Dict, idx: int, config: Config):
     """Display a single media item row with expandable details"""
     with st.container():
+        # Hash row
+        st.markdown(f"<span style='font-family: monospace; font-size: 1.1em; color: #00ffff; background-color: rgba(0,255,255,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(0,255,255,0.3);'>{item.get('hash', 'n/a')}</span>", unsafe_allow_html=True)
+
         # Main row with basic info
-        col1, col2, col3, col4, col5, col_buttons = st.columns([2.2, 1, 1.2, 1, 1.2, 2.4])
+        col1, col2, col3, col4, col5 = st.columns([2.5, 1, 1.2, 1, 1.2])
 
         with col1:
-            st.write(f"**{item.get('media_title', 'Unknown')}**")
+            st.markdown(f"<div style='padding-left: 4px;'><strong>{item.get('media_title', 'unknown')}</strong></div>", unsafe_allow_html=True)
             if item.get('media_type') == 'tv_show' and item.get('season') and item.get('episode'):
-                st.caption(f"S{item.get('season')}E{item.get('episode')}")
+                st.markdown(f"<div style='padding-left: 4px; font-size: 0.875em; color: #808495;'>s{item.get('season')}e{item.get('episode')}</div>", unsafe_allow_html=True)
 
         with col2:
             media_type = item.get('media_type', 'unknown')
-            st.write(f"**{media_type}**")
-            st.caption("Type")
+            st.markdown(f"<div style='line-height: 1.2;'><span style='font-size: 0.875em; color: #808495;'>media_type</span><br><strong>{media_type}</strong></div>", unsafe_allow_html=True)
 
         with col3:
             pipeline_status = item.get('pipeline_status', 'unknown')
@@ -158,15 +231,13 @@ def display_media_item(item: Dict, idx: int, config: Config):
                 'rejected': '#dc3545',
                 'paused': '#ffc107'
             }.get(pipeline_status, '#6c757d')
-            st.markdown(f'<span style="color: {status_color}; font-weight: bold;">{pipeline_status}</span>', unsafe_allow_html=True)
-            st.caption("Pipeline")
+            st.markdown(f"<div style='line-height: 1.2;'><span style='font-size: 0.875em; color: #808495;'>pipeline_status</span><br><span style='color: {status_color}; font-weight: bold;'>{pipeline_status}</span></div>", unsafe_allow_html=True)
 
         with col4:
             error_status = item.get('error_status', False)
             error_color = '#dc3545' if error_status else '#28a745'
-            error_text = 'True' if error_status else 'False'
-            st.markdown(f'<span style="color: {error_color}; font-weight: bold;">{error_text}</span>', unsafe_allow_html=True)
-            st.caption("Error")
+            error_text = 'true' if error_status else 'false'
+            st.markdown(f"<div style='line-height: 1.2;'><span style='font-size: 0.875em; color: #808495;'>error_status</span><br><span style='color: {error_color}; font-weight: bold;'>{error_text}</span></div>", unsafe_allow_html=True)
 
         with col5:
             rejection_status = item.get('rejection_status', 'unfiltered')
@@ -176,78 +247,113 @@ def display_media_item(item: Dict, idx: int, config: Config):
                 'rejected': '#dc3545',
                 'override': '#ffc107'
             }.get(rejection_status, '#6c757d')
-            st.markdown(f'<span style="color: {rejection_color}; font-weight: bold;">{rejection_status}</span>', unsafe_allow_html=True)
-            st.caption("Rejection")
+            st.markdown(f"<div style='line-height: 1.2;'><span style='font-size: 0.875em; color: #808495;'>rejection_status</span><br><span style='color: {rejection_color}; font-weight: bold;'>{rejection_status}</span></div>", unsafe_allow_html=True)
 
-        with col_buttons:
-            btn1, btn2 = st.columns(2)
-            with btn1:
-                if st.button("Edit", key=f"edit_{idx}", use_container_width=True):
-                    st.session_state.selected_item = item
+        # Buttons row
+        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+        btn1, btn2, btn3 = st.columns([1, 1, 1])
+        with btn1:
+            if st.button("edit", key=f"edit_{idx}", use_container_width=True):
+                st.session_state.selected_item = item
+                st.rerun()
+        with btn2:
+            if st.button("re-ingest", key=f"reingest_{idx}", use_container_width=True):
+                updates = {
+                    'pipeline_status': 'ingested',
+                    'error_status': False,
+                    'rejection_status': 'unfiltered'
+                }
+                success, result = make_patch_call(config, item.get('hash'), updates)
+                if success:
                     st.rerun()
-            with btn2:
-                if st.button("Re-ingest", key=f"reingest_{idx}", use_container_width=True):
-                    updates = {
-                        'pipeline_status': 'ingested',
-                        'error_status': False,
-                        'rejection_status': 'unfiltered'
-                    }
-                    success, result = make_patch_call(config, item.get('hash'), updates)
-                    if success:
-                        st.rerun()
-                    else:
-                        st.error(f"Failed to re-ingest: {result}")
+                else:
+                    st.error(f"failed to re-ingest: {result}")
+        with btn3:
+            if st.button("delete", key=f"delete_{idx}", use_container_width=True, type="primary"):
+                success, result = make_soft_delete_call(config, item.get('hash'))
+                if success:
+                    st.rerun()
+                else:
+                    st.error(f"failed to delete: {result}")
 
         st.divider()
 
 
 def display_focused_item(item: Dict, config: Config):
     """Display focused item with pipeline editing controls"""
+    if st.button("← Back to Results", use_container_width=False):
+        st.session_state.selected_item = None
+        st.rerun()
+
     st.subheader(f"{item.get('media_title', 'Unknown')}")
-    st.write(f"**Hash:** `{item.get('hash')}`")
+    st.markdown(f"<span style='font-family: monospace; font-size: 1.1em; color: #00ffff; background-color: rgba(0,255,255,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(0,255,255,0.3);'>{item.get('hash')}</span>", unsafe_allow_html=True)
+    st.markdown(f"<span style='font-family: monospace; font-size: 0.9em; color: #ff9800; background-color: rgba(255,152,0,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,152,0,0.3);'>{item.get('original_title', 'Unknown')}</span>", unsafe_allow_html=True)
 
-    resolution = item.get('resolution', 'Unknown')
-    video_codec = item.get('video_codec') or 'None'
-    st.write(f"**Resolution:** {resolution} | **Video Codec:** {video_codec}")
-
-    original_title = item.get('original_title', 'Unknown')
-    st.write(f"**Original Title:** {original_title}")
+    res_col1, res_col2, res_spacer = st.columns([1, 3, 2])
+    with res_col1:
+        st.caption("resolution")
+        st.write(f"**{item.get('resolution', 'Unknown')}**")
+    with res_col2:
+        st.caption("video_codec")
+        st.write(f"**{item.get('video_codec') or 'None'}**")
 
     # Current values
     current_pipeline = item.get('pipeline_status', 'ingested')
     current_error = item.get('error_status', False)
     current_rejection = item.get('rejection_status', 'unfiltered')
 
-    st.write("**Current Status:**")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.info(f"Pipeline: {current_pipeline}")
-    with col2:
-        st.info(f"Error: {current_error}")
-    with col3:
-        st.info(f"Rejection: {current_rejection}")
+    # Pipeline status row
+    pipeline_color = {
+        'ingested': '#28a745',
+        'processed': '#007bff',
+        'failed': '#dc3545',
+        'pending': '#ffc107',
+        'complete': '#28a745',
+        'downloading': '#17a2b8',
+        'transferred': '#6f42c1',
+        'rejected': '#dc3545',
+        'paused': '#ffc107'
+    }.get(current_pipeline, '#6c757d')
+    st.caption("pipeline_status")
+    st.markdown(f'<span style="color: {pipeline_color}; font-weight: bold;">{current_pipeline}</span>', unsafe_allow_html=True)
 
     error_condition = item.get('error_condition')
     rejection_reason = item.get('rejection_reason')
 
-    if error_condition or rejection_reason:
-        st.write("**Additional Details:**")
-        detail_col1, detail_col2 = st.columns(2)
+    # Error row
+    err_col1, err_col2, err_spacer = st.columns([1, 3, 2])
+    with err_col1:
+        error_color = '#dc3545' if current_error else '#28a745'
+        error_text = 'True' if current_error else 'False'
+        st.caption("error_status")
+        st.markdown(f'<span style="color: {error_color}; font-weight: bold;">{error_text}</span>', unsafe_allow_html=True)
+    with err_col2:
+        st.caption("error_condition")
+        if error_condition:
+            st.warning(f"{error_condition}")
+        else:
+            st.markdown("<span style='color: #6c757d;'>None</span>", unsafe_allow_html=True)
 
-        with detail_col1:
-            if error_condition:
-                st.warning(f"**Error Condition:** {error_condition}")
-            else:
-                st.write("**Error Condition:** None")
-
-        with detail_col2:
-            if rejection_reason:
-                st.warning(f"**Rejection Reason:** {rejection_reason}")
-            else:
-                st.write("**Rejection Reason:** None")
+    # Rejection row
+    rej_col1, rej_col2, rej_spacer = st.columns([1, 3, 2])
+    with rej_col1:
+        rejection_color = {
+            'unfiltered': '#6c757d',
+            'accepted': '#28a745',
+            'rejected': '#dc3545',
+            'override': '#ffc107'
+        }.get(current_rejection, '#6c757d')
+        st.caption("rejection_status")
+        st.markdown(f'<span style="color: {rejection_color}; font-weight: bold;">{current_rejection}</span>', unsafe_allow_html=True)
+    with rej_col2:
+        st.caption("rejection_reason")
+        if rejection_reason:
+            st.markdown(f"<span style='color: #ffc107; font-weight: bold;'>{rejection_reason}</span>", unsafe_allow_html=True)
+        else:
+            st.markdown("<span style='color: #6c757d;'>None</span>", unsafe_allow_html=True)
 
     st.divider()
-    st.write("**Update Values:**")
+    st.write("**update values:**")
 
     col1, col2, col3 = st.columns(3)
 
@@ -259,7 +365,7 @@ def display_focused_item(item: Dict, config: Config):
             pipeline_options.append(current_pipeline)
 
         new_pipeline = st.selectbox(
-            "Pipeline Status",
+            "pipeline_status",
             options=pipeline_options,
             index=pipeline_options.index(current_pipeline),
             key="pipeline_select"
@@ -267,7 +373,7 @@ def display_focused_item(item: Dict, config: Config):
 
     with col2:
         new_error = st.selectbox(
-            "Error Status",
+            "error_status",
             options=[False, True],
             index=1 if current_error else 0,
             key="error_select"
@@ -279,44 +385,13 @@ def display_focused_item(item: Dict, config: Config):
             rejection_options.append(current_rejection)
 
         new_rejection = st.selectbox(
-            "Rejection Status",
+            "rejection_status",
             options=rejection_options,
             index=rejection_options.index(current_rejection),
             key="rejection_select"
         )
 
     st.divider()
-    button_col1, button_col2 = st.columns(2)
-
-    with button_col1:
-        if st.button("Back to Results", use_container_width=True):
-            st.session_state.selected_item = None
-            st.rerun()
-
-    with button_col2:
-        if st.button("Submit Pipeline Update", use_container_width=True, key="submit_btn"):
-            updates = {}
-            if new_pipeline != current_pipeline:
-                updates['pipeline_status'] = new_pipeline
-            if new_error != current_error:
-                updates['error_status'] = new_error
-            if new_rejection != current_rejection:
-                updates['rejection_status'] = new_rejection
-
-            if updates:
-                with st.spinner("Updating pipeline status..."):
-                    success, result = make_patch_call(config, item.get('hash'), updates)
-
-                if success:
-                    st.success("Pipeline status updated successfully!")
-                    st.json(result)
-                    st.session_state.selected_item = None
-                    st.rerun()
-                else:
-                    st.error("Failed to update pipeline status!")
-                    st.code(result)
-            else:
-                st.info("No changes detected")
 
     # Custom button styling using key-based CSS selectors
     st.markdown("""
@@ -342,15 +417,43 @@ def display_focused_item(item: Dict, config: Config):
     </style>
     """, unsafe_allow_html=True)
 
-    if st.button("Delete Media Entry", use_container_width=True, key="delete_btn"):
-        with st.spinner("Deleting..."):
-            success, result = make_soft_delete_call(config, item.get('hash'))
-        if success:
-            st.success("Media entry soft deleted successfully!")
-            st.session_state.selected_item = None
-            st.rerun()
-        else:
-            st.error(f"Failed to delete: {result}")
+    button_col1, button_col2 = st.columns(2)
+
+    with button_col1:
+        if st.button("Submit Pipeline Update", use_container_width=True, key="submit_btn"):
+            updates = {}
+            if new_pipeline != current_pipeline:
+                updates['pipeline_status'] = new_pipeline
+            if new_error != current_error:
+                updates['error_status'] = new_error
+            if new_rejection != current_rejection:
+                updates['rejection_status'] = new_rejection
+
+            if updates:
+                with st.spinner("Updating pipeline status..."):
+                    success, result = make_patch_call(config, item.get('hash'), updates)
+
+                if success:
+                    st.success("Pipeline status updated successfully!")
+                    st.json(result)
+                    st.session_state.selected_item = None
+                    st.rerun()
+                else:
+                    st.error("Failed to update pipeline status!")
+                    st.code(result)
+            else:
+                st.info("No changes detected")
+
+    with button_col2:
+        if st.button("Delete Media Entry", use_container_width=True, key="delete_btn"):
+            with st.spinner("Deleting..."):
+                success, result = make_soft_delete_call(config, item.get('hash'))
+            if success:
+                st.success("Media entry soft deleted successfully!")
+                st.session_state.selected_item = None
+                st.rerun()
+            else:
+                st.error(f"Failed to delete: {result}")
 
     # Expandable details section
     with st.expander(f"Details for {item.get('media_title', 'Unknown')}", expanded=False):
@@ -435,48 +538,94 @@ def main():
         st.session_state.search_type = "title"
     if 'filter_errors' not in st.session_state:
         st.session_state.filter_errors = False
+    if 'filter_in_transmission' not in st.session_state:
+        st.session_state.filter_in_transmission = False
+    if 'filter_pipeline_status' not in st.session_state:
+        st.session_state.filter_pipeline_status = "All"
+    if 'page_offset' not in st.session_state:
+        st.session_state.page_offset = 0
 
     # If item is selected, show edit view
     if st.session_state.selected_item:
         display_focused_item(st.session_state.selected_item, config)
         return
 
-    # Error indicator and filter
+    # Search and filters
     error_count = fetch_error_count(config)
-    error_col1, error_col2, error_col3 = st.columns([1, 1, 4])
 
-    with error_col1:
-        if error_count > 0:
-            st.markdown(f'<span style="color: #dc3545; font-weight: bold; font-size: 1.2em;">Errors: {error_count}</span>', unsafe_allow_html=True)
-        else:
-            st.markdown('<span style="color: #28a745; font-weight: bold; font-size: 1.2em;">Errors: 0</span>', unsafe_allow_html=True)
-
-    with error_col2:
-        if st.session_state.filter_errors:
-            if st.button("Show All", use_container_width=True):
-                st.session_state.filter_errors = False
-                st.rerun()
-        else:
-            if st.button("Show Errors", type="primary" if error_count > 0 else "secondary", use_container_width=True):
-                st.session_state.filter_errors = True
-                st.rerun()
-
-    # Search section
     search_col1, search_col2, search_col3 = st.columns([3, 1, 1])
 
     with search_col1:
-        search_term = st.text_input("Search", placeholder="Enter hash or title...", key="search_input")
+        search_term = st.text_input("Search", placeholder="Enter hash or title...", key="search_input", label_visibility="collapsed")
 
     with search_col2:
-        search_type = st.selectbox("Search By", ["hash", "title"], key="search_type_select")
+        search_type = st.selectbox("Search By", ["hash", "title"], key="search_type_select", label_visibility="collapsed")
 
     with search_col3:
-        st.write("")  # Spacer for alignment
-        search_clicked = st.button("Search", use_container_width=True)
+        popover_label = f"⚠️ errors ({error_count})" if error_count > 0 else "filters"
+        with st.popover(popover_label, use_container_width=True):
+            if error_count > 0:
+                st.markdown(f'<span style="color: #dc3545; font-weight: bold;">⚠️ {error_count} items with errors</span>', unsafe_allow_html=True)
+            else:
+                st.markdown('<span style="color: #28a745; font-weight: bold;">✓ No errors</span>', unsafe_allow_html=True)
+
+            st.divider()
+
+            filter_errors = st.checkbox(
+                "Show errors only",
+                value=st.session_state.filter_errors,
+                key="filter_errors_checkbox"
+            )
+            if filter_errors != st.session_state.filter_errors:
+                st.session_state.filter_errors = filter_errors
+                st.session_state.page_offset = 0
+                st.rerun()
+
+            filter_in_transmission = st.checkbox(
+                "In-transmission",
+                value=st.session_state.filter_in_transmission,
+                key="filter_in_transmission_checkbox",
+                help="Show items with pipeline_status: downloading, downloaded",
+                disabled=st.session_state.filter_pipeline_status != "All"
+            )
+            if filter_in_transmission != st.session_state.filter_in_transmission:
+                st.session_state.filter_in_transmission = filter_in_transmission
+                st.session_state.page_offset = 0
+                st.rerun()
+
+            pipeline_status_options = [
+                "All",
+                "ingested",
+                "paused",
+                "parsed",
+                "rejected",
+                "file_accepted",
+                "metadata_collected",
+                "media_accepted",
+                "downloading",
+                "downloaded",
+                "transferred",
+                "complete"
+            ]
+            filter_pipeline_status = st.selectbox(
+                "Pipeline Status",
+                options=pipeline_status_options,
+                index=pipeline_status_options.index(st.session_state.filter_pipeline_status),
+                key="filter_pipeline_status_select"
+            )
+            if filter_pipeline_status != st.session_state.filter_pipeline_status:
+                st.session_state.filter_pipeline_status = filter_pipeline_status
+                st.session_state.page_offset = 0
+                # Clear in-transmission if a specific status is selected
+                if filter_pipeline_status != "All":
+                    st.session_state.filter_in_transmission = False
+                st.rerun()
 
     # Build API call display
+    page_size = 20
     params = {
-        "limit": 20,
+        "limit": page_size,
+        "offset": st.session_state.page_offset,
         "sort_by": "updated_at",
         "sort_order": "desc"
     }
@@ -489,13 +638,26 @@ def main():
     if st.session_state.filter_errors:
         params["error_status"] = "true"
 
+    pipeline_statuses = None
+    if st.session_state.filter_pipeline_status != "All":
+        # Specific pipeline status selected
+        pipeline_statuses = [st.session_state.filter_pipeline_status]
+    elif st.session_state.filter_in_transmission:
+        # In-transmission shortcut (only when no specific status selected)
+        pipeline_statuses = ["downloading", "downloaded"]
+
     param_string = "&".join([f"{k}={v}" for k, v in params.items()])
-    api_url = f"{config.media_endpoint}?{param_string}"
-    st.code(api_url, language="bash")
+    if pipeline_statuses:
+        # Show that we're making multiple calls
+        api_urls = [f"{config.media_endpoint}?{param_string}&pipeline_status={s}" for s in pipeline_statuses]
+        st.code("\n".join(api_urls), language="bash")
+    else:
+        api_url = f"{config.media_endpoint}?{param_string}"
+        st.code(api_url, language="bash")
 
     # Fetch data
     error_filter = True if st.session_state.filter_errors else None
-    data = fetch_media_data(config, limit=20, search_term=search_term if search_term else None, search_type=search_type, error_status=error_filter)
+    data = fetch_media_data(config, limit=page_size, offset=st.session_state.page_offset, search_term=search_term if search_term else None, search_type=search_type, error_status=error_filter, pipeline_statuses=pipeline_statuses)
 
     if not data:
         return
@@ -503,11 +665,23 @@ def main():
     items = data.get("data", [])
 
     # Display count
-    filter_desc = " with errors" if st.session_state.filter_errors else ""
+    filter_parts = []
+    if st.session_state.filter_errors:
+        filter_parts.append("with errors")
+    if st.session_state.filter_pipeline_status != "All":
+        filter_parts.append(f"status: {st.session_state.filter_pipeline_status}")
+    elif st.session_state.filter_in_transmission:
+        filter_parts.append("in-transmission")
+    filter_desc = f" ({', '.join(filter_parts)})" if filter_parts else ""
+
+    start_idx = st.session_state.page_offset + 1
+    end_idx = st.session_state.page_offset + len(items)
+    range_str = f"{start_idx}-{end_idx}"
+
     if search_term:
-        st.info(f"Found {len(items)} media items{filter_desc} matching '{search_term}'")
+        st.info(f"showing {range_str}{filter_desc} matching '{search_term}'")
     else:
-        st.info(f"Showing {len(items)} most recent media items{filter_desc}")
+        st.info(f"showing {range_str}{filter_desc}")
 
     if not items:
         st.info("No media items found")
@@ -516,6 +690,27 @@ def main():
     # Display each media item
     for idx, item in enumerate(items):
         display_media_item(item, idx, config)
+
+    # Pagination buttons
+    st.divider()
+    pag_col1, pag_col2, pag_col3 = st.columns([1, 2, 1])
+
+    with pag_col1:
+        if st.session_state.page_offset > 0:
+            if st.button("← Previous", use_container_width=True):
+                st.session_state.page_offset = max(0, st.session_state.page_offset - page_size)
+                st.rerun()
+
+    with pag_col2:
+        current_page = (st.session_state.page_offset // page_size) + 1
+        st.markdown(f"<div style='text-align: center; padding-top: 5px;'>Page {current_page}</div>", unsafe_allow_html=True)
+
+    with pag_col3:
+        # Show next button if we got a full page (might be more)
+        if len(items) == page_size:
+            if st.button("Next →", use_container_width=True):
+                st.session_state.page_offset += page_size
+                st.rerun()
 
 
 if __name__ == "__main__":
