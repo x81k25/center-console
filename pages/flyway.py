@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import time
 
 st.set_page_config(
-    page_title="get-flyway-migrations",
+    page_title="flyway",
     page_icon="./favicon/android-chrome-192x192.png",
     layout="wide"
 )
