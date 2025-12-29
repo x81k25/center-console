@@ -7,7 +7,7 @@ import time
 
 st.set_page_config(
     page_title="get-flyway-migrations",
-    page_icon="🗃️",
+    page_icon="./favicon/android-chrome-192x192.png",
     layout="wide"
 )
 

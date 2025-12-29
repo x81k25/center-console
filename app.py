@@ -1,8 +1,8 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Center Console",
-    page_icon="🎬",
+    page_title="center-console",
+    page_icon="./favicon/android-chrome-192x192.png",
     layout="wide"
 )
 
@@ -100,13 +100,13 @@ Welcome to the Center Console application for managing the Rear Differential med
 
 Select a page from the sidebar to get started, or click the links below:
 
-### 🔧 [Media Pipeline](media-pipeline)
-**Pipeline Status Management**
+### 🎬 [Media](media)
+**Media Browser & Pipeline Management**
+- Browse most recent 20 media items by default
 - Search media items by hash or title
-- View and update pipeline status (`ingested`, `parsed`, `rejected`, `downloading`, `complete`, etc.)
-- Manage error conditions and rejection status
-- Comprehensive debugging and API call visibility
-- Color-coded status indicators with icons
+- View detailed metadata for movies and TV shows
+- Update pipeline status, error conditions, and rejection status
+- Color-coded status indicators with expandable details
 
 ### 📚 [Training Backlog](training-backlog)
 **Movie Review Interface**
@@ -131,14 +131,6 @@ Select a page from the sidebar to get started, or click the links below:
 - Update labels (`would_watch` vs `would_not_watch`)
 - Toggle anomalous status for items
 - Similar interface to Prediction Anomalies page
-
-### 🎬 [Media Library](get-media)
-**Media Collection Browser**
-- Browse complete media collection with pagination
-- View detailed metadata for movies and TV shows
-- Pipeline status tracking and error monitoring
-- Search and filter capabilities
-- Color-coded status indicators
 
 ### 🗃️ [Database Migrations](get-flyway-migrations)
 **Flyway Migration History**
