@@ -58,13 +58,13 @@ hr {
     color: white !important;
 }
 
-/* Promote button styling (purple) */
-[data-testid="stHorizontalBlock"] [class*="st-key-promote_"] button {
+/* Approve button styling (purple) */
+[data-testid="stHorizontalBlock"] [class*="st-key-approve_"] button {
     background-color: #6f42c1 !important;
     color: white !important;
     border: none !important;
 }
-[data-testid="stHorizontalBlock"] [class*="st-key-promote_"] button:hover {
+[data-testid="stHorizontalBlock"] [class*="st-key-approve_"] button:hover {
     background-color: #5a32a3 !important;
     color: white !important;
 }
@@ -147,12 +147,12 @@ def make_soft_delete_call(config: Config, hash_id: str):
         return False, str(e)
 
 
-def make_promote_call(config: Config, hash_id: str):
-    """Make a PATCH call to promote a media entry (clear errors, set to downloaded)"""
-    endpoint = f"{config.base_url}media/{hash_id}/promote"
+def make_approve_call(config: Config, hash_id: str):
+    """Make a PATCH call to approve a media entry (clear errors, set to downloaded)"""
+    endpoint = f"{config.base_url}media/{hash_id}/approve"
 
     try:
-        logger.info(f"PATCH {endpoint} (promote)")
+        logger.info(f"PATCH {endpoint} (approve)")
 
         response = requests.patch(
             endpoint,
@@ -160,14 +160,14 @@ def make_promote_call(config: Config, hash_id: str):
         )
 
         if response.status_code == 200:
-            logger.info("Promote successful")
+            logger.info("Approve successful")
             return True, response.json()
         else:
-            logger.error(f"Promote failed: {response.status_code}")
+            logger.error(f"Approve failed: {response.status_code}")
             return False, response.text
 
     except Exception as e:
-        logger.error(f"Exception during promote call: {str(e)}")
+        logger.error(f"Exception during approve call: {str(e)}")
         return False, str(e)
 
 
@@ -339,12 +339,12 @@ def display_media_item(item: Dict, idx: int, config: Config):
                 else:
                     st.error(f"failed to re-ingest: {result}")
         with btn3:
-            if st.button("promote", key=f"promote_{idx}", use_container_width=True):
-                success, result = make_promote_call(config, item.get('hash'))
+            if st.button("approve", key=f"approve_{idx}", use_container_width=True):
+                success, result = make_approve_call(config, item.get('hash'))
                 if success:
                     st.rerun()
                 else:
-                    st.error(f"failed to promote: {result}")
+                    st.error(f"failed to approve: {result}")
         with btn4:
             if st.button("finish", key=f"finish_{idx}", use_container_width=True):
                 success, result = make_finish_call(config, item.get('hash'))
@@ -505,12 +505,12 @@ def display_focused_item(item: Dict, config: Config):
         background-color: #218838 !important;
         color: white !important;
     }
-    .st-key-promote_detail_btn button {
+    .st-key-approve_detail_btn button {
         background-color: #6f42c1 !important;
         color: white !important;
         border: none !important;
     }
-    .st-key-promote_detail_btn button:hover {
+    .st-key-approve_detail_btn button:hover {
         background-color: #5a32a3 !important;
         color: white !important;
     }
@@ -563,15 +563,15 @@ def display_focused_item(item: Dict, config: Config):
                 st.info("No changes detected")
 
     with button_col2:
-        if st.button("Promote", use_container_width=True, key="promote_detail_btn"):
-            with st.spinner("Promoting..."):
-                success, result = make_promote_call(config, item.get('hash'))
+        if st.button("Approve", use_container_width=True, key="approve_detail_btn"):
+            with st.spinner("Approving..."):
+                success, result = make_approve_call(config, item.get('hash'))
             if success:
-                st.success("Media entry promoted successfully!")
+                st.success("Media entry approved successfully!")
                 st.session_state.selected_item = None
                 st.rerun()
             else:
-                st.error(f"Failed to promote: {result}")
+                st.error(f"Failed to approve: {result}")
 
     with button_col3:
         if st.button("Finish", use_container_width=True, key="finish_detail_btn"):
@@ -696,7 +696,10 @@ def main():
     search_col1, search_col2, search_col3, search_col4 = st.columns([3, 1, 1, 0.3])
 
     with search_col1:
-        search_term = st.text_input("Search", placeholder="Enter hash or title...", key="search_input", label_visibility="collapsed")
+        search_term = st.text_input("Search", placeholder="Enter hash or title...", key="search_input", value=st.session_state.search_term, label_visibility="collapsed")
+        # Sync to session state for persistence across details view
+        if search_term != st.session_state.search_term:
+            st.session_state.search_term = search_term
 
     with search_col2:
         search_type = st.selectbox("Search By", ["hash", "title"], key="search_type_select", label_visibility="collapsed")
