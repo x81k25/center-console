@@ -108,13 +108,16 @@ Select a page from the sidebar to get started, or click the links below:
 - Update pipeline status, error conditions, and rejection status
 - Color-coded status indicators with expandable details
 
-### 📚 [Training Backlog](training-backlog)
-**Movie Review Interface**
-- Review unreviewed movies from the training dataset
+### 📚 [Training](training)
+**Movie Review & Search Interface**
+- Review unreviewed movies from the training dataset (backlog)
+- Search movies by title or IMDB ID
 - Binary classification: `would_watch` vs `would_not_watch`
+- Toggle anomalous status for items
+- Filter by reviewed status and anomalous flag
 - Display movie metadata (RT score, IMDB votes, genre)
 - Expandable details with comprehensive movie information
-- Auto-refresh after each review decision
+- Pagination and auto-refresh after each review decision
 
 ### 🔍 [Prediction Anomalies](prediction-anomalies)
 **ML Prediction Analysis**
@@ -123,14 +126,6 @@ Select a page from the sidebar to get started, or click the links below:
 - Update labels for mispredicted items
 - Display prediction probability and actual vs predicted labels
 - Filter by: All, False Positives, False Negatives, True Positives, True Negatives
-
-### 🔎 [Training Search](training-search)
-**Search and Review Training Data**
-- Search movies by title or IMDB ID
-- View complete training data with all metadata
-- Update labels (`would_watch` vs `would_not_watch`)
-- Toggle anomalous status for items
-- Similar interface to Prediction Anomalies page
 
 ### 🗃️ [Database Migrations](get-flyway-migrations)
 **Flyway Migration History**
