@@ -696,7 +696,10 @@ def main():
     search_col1, search_col2, search_col3, search_col4 = st.columns([3, 1, 1, 0.3])
 
     with search_col1:
-        search_term = st.text_input("Search", placeholder="Enter hash or title...", key="search_input", label_visibility="collapsed")
+        search_term = st.text_input("Search", placeholder="Enter hash or title...", key="search_input", value=st.session_state.search_term, label_visibility="collapsed")
+        # Sync to session state for persistence across details view
+        if search_term != st.session_state.search_term:
+            st.session_state.search_term = search_term
 
     with search_col2:
         search_type = st.selectbox("Search By", ["hash", "title"], key="search_type_select", label_visibility="collapsed")
