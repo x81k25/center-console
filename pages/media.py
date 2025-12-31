@@ -58,6 +58,28 @@ hr {
     color: white !important;
 }
 
+/* Promote button styling (purple) */
+[data-testid="stHorizontalBlock"] [class*="st-key-promote_"] button {
+    background-color: #6f42c1 !important;
+    color: white !important;
+    border: none !important;
+}
+[data-testid="stHorizontalBlock"] [class*="st-key-promote_"] button:hover {
+    background-color: #5a32a3 !important;
+    color: white !important;
+}
+
+/* Finish button styling (blue) */
+[data-testid="stHorizontalBlock"] [class*="st-key-finish_"] button {
+    background-color: #007bff !important;
+    color: white !important;
+    border: none !important;
+}
+[data-testid="stHorizontalBlock"] [class*="st-key-finish_"] button:hover {
+    background-color: #0056b3 !important;
+    color: white !important;
+}
+
 /* Delete button styling (red) */
 [data-testid="stHorizontalBlock"] [class*="st-key-delete_"] button {
     background-color: #dc3545 !important;
@@ -122,6 +144,54 @@ def make_soft_delete_call(config: Config, hash_id: str):
 
     except Exception as e:
         logger.error(f"Exception during soft delete call: {str(e)}")
+        return False, str(e)
+
+
+def make_promote_call(config: Config, hash_id: str):
+    """Make a PATCH call to promote a media entry (clear errors, set to downloaded)"""
+    endpoint = f"{config.base_url}media/{hash_id}/promote"
+
+    try:
+        logger.info(f"PATCH {endpoint} (promote)")
+
+        response = requests.patch(
+            endpoint,
+            timeout=config.api_timeout
+        )
+
+        if response.status_code == 200:
+            logger.info("Promote successful")
+            return True, response.json()
+        else:
+            logger.error(f"Promote failed: {response.status_code}")
+            return False, response.text
+
+    except Exception as e:
+        logger.error(f"Exception during promote call: {str(e)}")
+        return False, str(e)
+
+
+def make_finish_call(config: Config, hash_id: str):
+    """Make a PATCH call to finish a media entry (mark complete, remove from Transmission)"""
+    endpoint = f"{config.base_url}media/{hash_id}/finish"
+
+    try:
+        logger.info(f"PATCH {endpoint} (finish)")
+
+        response = requests.patch(
+            endpoint,
+            timeout=config.api_timeout
+        )
+
+        if response.status_code == 200:
+            logger.info("Finish successful")
+            return True, response.json()
+        else:
+            logger.error(f"Finish failed: {response.status_code}")
+            return False, response.text
+
+    except Exception as e:
+        logger.error(f"Exception during finish call: {str(e)}")
         return False, str(e)
 
 
@@ -251,7 +321,7 @@ def display_media_item(item: Dict, idx: int, config: Config):
 
         # Buttons row
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-        btn1, btn2, btn3 = st.columns([1, 1, 1])
+        btn1, btn2, btn3, btn4, btn5 = st.columns([1, 1, 1, 1, 1])
         with btn1:
             if st.button("edit", key=f"edit_{idx}", use_container_width=True):
                 st.session_state.selected_item = item
@@ -269,6 +339,20 @@ def display_media_item(item: Dict, idx: int, config: Config):
                 else:
                     st.error(f"failed to re-ingest: {result}")
         with btn3:
+            if st.button("promote", key=f"promote_{idx}", use_container_width=True):
+                success, result = make_promote_call(config, item.get('hash'))
+                if success:
+                    st.rerun()
+                else:
+                    st.error(f"failed to promote: {result}")
+        with btn4:
+            if st.button("finish", key=f"finish_{idx}", use_container_width=True):
+                success, result = make_finish_call(config, item.get('hash'))
+                if success:
+                    st.rerun()
+                else:
+                    st.error(f"failed to finish: {result}")
+        with btn5:
             if st.button("delete", key=f"delete_{idx}", use_container_width=True, type="primary"):
                 success, result = make_soft_delete_call(config, item.get('hash'))
                 if success:
@@ -421,6 +505,24 @@ def display_focused_item(item: Dict, config: Config):
         background-color: #218838 !important;
         color: white !important;
     }
+    .st-key-promote_detail_btn button {
+        background-color: #6f42c1 !important;
+        color: white !important;
+        border: none !important;
+    }
+    .st-key-promote_detail_btn button:hover {
+        background-color: #5a32a3 !important;
+        color: white !important;
+    }
+    .st-key-finish_detail_btn button {
+        background-color: #007bff !important;
+        color: white !important;
+        border: none !important;
+    }
+    .st-key-finish_detail_btn button:hover {
+        background-color: #0056b3 !important;
+        color: white !important;
+    }
     .st-key-delete_btn button {
         background-color: #dc3545 !important;
         color: white !important;
@@ -433,7 +535,7 @@ def display_focused_item(item: Dict, config: Config):
     </style>
     """, unsafe_allow_html=True)
 
-    button_col1, button_col2 = st.columns(2)
+    button_col1, button_col2, button_col3, button_col4 = st.columns(4)
 
     with button_col1:
         if st.button("Submit Pipeline Update", use_container_width=True, key="submit_btn"):
@@ -461,6 +563,28 @@ def display_focused_item(item: Dict, config: Config):
                 st.info("No changes detected")
 
     with button_col2:
+        if st.button("Promote", use_container_width=True, key="promote_detail_btn"):
+            with st.spinner("Promoting..."):
+                success, result = make_promote_call(config, item.get('hash'))
+            if success:
+                st.success("Media entry promoted successfully!")
+                st.session_state.selected_item = None
+                st.rerun()
+            else:
+                st.error(f"Failed to promote: {result}")
+
+    with button_col3:
+        if st.button("Finish", use_container_width=True, key="finish_detail_btn"):
+            with st.spinner("Finishing..."):
+                success, result = make_finish_call(config, item.get('hash'))
+            if success:
+                st.success("Media entry finished successfully!")
+                st.session_state.selected_item = None
+                st.rerun()
+            else:
+                st.error(f"Failed to finish: {result}")
+
+    with button_col4:
         if st.button("Delete Media Entry", use_container_width=True, key="delete_btn"):
             with st.spinner("Deleting..."):
                 success, result = make_soft_delete_call(config, item.get('hash'))
@@ -569,7 +693,7 @@ def main():
     # Search and filters
     error_count = fetch_error_count(config)
 
-    search_col1, search_col2, search_col3 = st.columns([3, 1, 1])
+    search_col1, search_col2, search_col3, search_col4 = st.columns([3, 1, 1, 0.3])
 
     with search_col1:
         search_term = st.text_input("Search", placeholder="Enter hash or title...", key="search_input", label_visibility="collapsed")
@@ -637,6 +761,26 @@ def main():
                     st.session_state.filter_in_transmission = False
                 st.rerun()
 
+    with search_col4:
+        if st.button("↻", key="refresh_btn", use_container_width=True):
+            st.rerun()
+
+    # Mobile-only enter button
+    st.markdown("""
+    <style>
+    .st-key-mobile_enter_btn {
+        display: none;
+    }
+    @media (max-width: 768px) {
+        .st-key-mobile_enter_btn {
+            display: block;
+        }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    if st.button("Enter", key="mobile_enter_btn", use_container_width=True):
+        st.rerun()
+
     # Build API call display
     page_size = 20
     params = {
@@ -680,6 +824,10 @@ def main():
 
     items = data.get("data", [])
 
+    if not items:
+        st.info("0 media items found")
+        return
+
     # Display count
     filter_parts = []
     if st.session_state.filter_errors:
@@ -698,10 +846,6 @@ def main():
         st.info(f"showing {range_str}{filter_desc} matching '{search_term}'")
     else:
         st.info(f"showing {range_str}{filter_desc}")
-
-    if not items:
-        st.info("No media items found")
-        return
 
     # Display each media item
     for idx, item in enumerate(items):
