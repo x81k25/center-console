@@ -221,6 +221,24 @@ def toggle_anomalous(config: Config, imdb_id: str, current_anomalous: bool) -> b
         return False
 
 
+def reject_training(config: Config, imdb_id: str) -> bool:
+    """Reject a training item using the reject endpoint.
+
+    This sets label to would_not_watch, marks as human_labeled and reviewed,
+    and attempts to delete associated media files.
+    """
+    try:
+        response = requests.patch(
+            config.get_training_reject_endpoint(imdb_id),
+            timeout=config.api_timeout
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        st.error(f"Failed to reject training item {imdb_id}: {str(e)}")
+        return False
+
+
 def display_movie_row(item: Dict, config: Config, idx: int):
     """Display a single movie row with all the controls"""
     imdb_id = item.get("imdb_id")
@@ -311,7 +329,7 @@ def display_movie_row(item: Dict, config: Config, idx: int):
         with col8:
             btn_type = "primary" if current_label == "would_not_watch" else "secondary"
             if st.button("would_not", key=f"would_not_watch_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
-                if update_label(config, imdb_id, "would_not_watch", current_label):
+                if reject_training(config, imdb_id):
                     st.rerun()
 
         with col9:
