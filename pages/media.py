@@ -204,7 +204,7 @@ def display_media_item(item: Dict, idx: int, config: Config):
     """Display a single media item row with expandable details"""
     with st.container():
         # Hash row
-        st.markdown(f"<span style='font-family: monospace; font-size: 1.1em; color: #00ffff; background-color: rgba(0,255,255,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(0,255,255,0.3);'>{item.get('hash', 'n/a')}</span>", unsafe_allow_html=True)
+        st.markdown(f"<span style='font-family: monospace; font-size: 0.945em; color: #00ffff; background-color: rgba(0,255,255,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(0,255,255,0.3);'>{item.get('hash', 'n/a')}</span>", unsafe_allow_html=True)
 
         # Main row with basic info
         col1, col2, col3, col4, col5 = st.columns([2.5, 1, 1.2, 1, 1.2])
@@ -281,7 +281,23 @@ def display_media_item(item: Dict, idx: int, config: Config):
 
 def display_focused_item(item: Dict, config: Config):
     """Display focused item with pipeline editing controls"""
-    if st.button("← Back to Results", use_container_width=False):
+    # Style for back button
+    st.markdown("""
+    <style>
+    .st-key-back_btn button {
+        background-color: #00bcd4 !important;
+        color: white !important;
+        border: none !important;
+        font-weight: bold !important;
+    }
+    .st-key-back_btn button:hover {
+        background-color: #00acc1 !important;
+        color: white !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    if st.button("← Back to Results", use_container_width=False, key="back_btn"):
         st.session_state.selected_item = None
         st.rerun()
 
@@ -289,7 +305,7 @@ def display_focused_item(item: Dict, config: Config):
     st.markdown(f"<span style='font-family: monospace; font-size: 1.1em; color: #00ffff; background-color: rgba(0,255,255,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(0,255,255,0.3);'>{item.get('hash')}</span>", unsafe_allow_html=True)
     st.markdown(f"<span style='font-family: monospace; font-size: 0.9em; color: #ff9800; background-color: rgba(255,152,0,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,152,0,0.3);'>{item.get('original_title', 'Unknown')}</span>", unsafe_allow_html=True)
 
-    res_col1, res_col2, res_spacer = st.columns([1, 3, 2])
+    res_col1, res_col2, res_spacer = st.columns([1, 5, 0.5])
     with res_col1:
         st.caption("resolution")
         st.write(f"**{item.get('resolution', 'Unknown')}**")
@@ -321,7 +337,7 @@ def display_focused_item(item: Dict, config: Config):
     rejection_reason = item.get('rejection_reason')
 
     # Error row
-    err_col1, err_col2, err_spacer = st.columns([1, 3, 2])
+    err_col1, err_col2, err_spacer = st.columns([1, 5, 0.5])
     with err_col1:
         error_color = '#dc3545' if current_error else '#28a745'
         error_text = 'True' if current_error else 'False'
@@ -330,12 +346,12 @@ def display_focused_item(item: Dict, config: Config):
     with err_col2:
         st.caption("error_condition")
         if error_condition:
-            st.warning(f"{error_condition}")
+            st.markdown(f"<span style='color: #ffc107; font-weight: bold;'>{error_condition}</span>", unsafe_allow_html=True)
         else:
             st.markdown("<span style='color: #6c757d;'>None</span>", unsafe_allow_html=True)
 
     # Rejection row
-    rej_col1, rej_col2, rej_spacer = st.columns([1, 3, 2])
+    rej_col1, rej_col2, rej_spacer = st.columns([1, 5, 0.5])
     with rej_col1:
         rejection_color = {
             'unfiltered': '#6c757d',
@@ -585,7 +601,7 @@ def main():
                 "In-transmission",
                 value=st.session_state.filter_in_transmission,
                 key="filter_in_transmission_checkbox",
-                help="Show items with pipeline_status: downloading, downloaded",
+                help="Show items with pipeline_status: downloading, downloaded, transferred",
                 disabled=st.session_state.filter_pipeline_status != "All"
             )
             if filter_in_transmission != st.session_state.filter_in_transmission:
@@ -644,7 +660,7 @@ def main():
         pipeline_statuses = [st.session_state.filter_pipeline_status]
     elif st.session_state.filter_in_transmission:
         # In-transmission shortcut (only when no specific status selected)
-        pipeline_statuses = ["downloading", "downloaded"]
+        pipeline_statuses = ["downloading", "downloaded", "transferred"]
 
     param_string = "&".join([f"{k}={v}" for k, v in params.items()])
     if pipeline_statuses:
