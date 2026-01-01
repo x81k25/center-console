@@ -49,9 +49,9 @@ class Config:
         """Get the media pipeline patch endpoint for a specific hash ID"""
         return f"{self.base_url}media/{hash_id}/pipeline"
 
-    def get_training_reject_endpoint(self, imdb_id):
-        """Get the training reject endpoint for a specific IMDB ID"""
-        return f"{self.base_url}training/{imdb_id}/reject"
+    def get_training_would_not_watch_endpoint(self, imdb_id):
+        """Get the training would_not_watch endpoint for a specific IMDB ID"""
+        return f"{self.base_url}training/{imdb_id}/would_not_watch"
     
     @property
     def media_endpoint(self):
