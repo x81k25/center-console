@@ -1,5 +1,7 @@
 import streamlit as st
 import requests
+import plotly.graph_objects as go
+import math
 from config import Config
 from typing import Dict, List, Optional
 import datetime
@@ -152,6 +154,224 @@ def genre_to_emoji(genre: str) -> str:
         "Western": "🤠"
     }
     return genre_map.get(genre, "🎬")
+
+
+def normalize_imdb_votes(votes: int, max_votes: int = 1000000) -> float:
+    """Normalize IMDB votes using log scale (0-100)"""
+    if votes is None or votes <= 0:
+        return 0
+    # Log scale: log(votes) / log(max_votes) * 100
+    return min(math.log10(votes) / math.log10(max_votes) * 100, 100)
+
+
+def get_geometric_midpoint_radius(r1: float, theta1: float, r2: float, theta2: float, theta_mid: float) -> float:
+    """
+    Calculate the radius at theta_mid where the straight line between
+    (r1, theta1) and (r2, theta2) intersects the ray at theta_mid.
+    All angles in degrees.
+    """
+    # Convert to radians
+    t1 = math.radians(theta1)
+    t2 = math.radians(theta2)
+    tm = math.radians(theta_mid)
+
+    # Convert polar to Cartesian
+    x1, y1 = r1 * math.cos(t1), r1 * math.sin(t1)
+    x2, y2 = r2 * math.cos(t2), r2 * math.sin(t2)
+
+    # Direction of the midpoint ray
+    dx_ray, dy_ray = math.cos(tm), math.sin(tm)
+
+    # Line segment direction
+    dx_line, dy_line = x2 - x1, y2 - y1
+
+    # Find intersection using parametric form
+    # Ray: (t * dx_ray, t * dy_ray)
+    # Line: (x1 + s * dx_line, y1 + s * dy_line)
+    # Solve: t * dx_ray = x1 + s * dx_line
+    #        t * dy_ray = y1 + s * dy_line
+
+    denom = dx_ray * dy_line - dy_ray * dx_line
+    if abs(denom) < 1e-10:
+        # Lines are parallel, fall back to average
+        return (r1 + r2) / 2
+
+    t = (x1 * dy_line - y1 * dx_line) / denom
+
+    # t is the radius at the midpoint angle
+    return max(0, t)
+
+
+def normalize_tmdb_votes(votes: int, max_votes: int = 100000) -> float:
+    """Normalize TMDB votes using log scale (0-100)"""
+    if votes is None or votes <= 0:
+        return 0
+    # Log scale: log(votes) / log(max_votes) * 100
+    return min(math.log10(votes) / math.log10(max_votes) * 100, 100)
+
+
+def is_null_value(val) -> bool:
+    """Check if a value is NULL/None/empty"""
+    if val is None:
+        return True
+    if isinstance(val, str) and val.strip() == '':
+        return True
+    return False
+
+
+def safe_float(val, default=0.0) -> float:
+    """Safely convert a value to float"""
+    if is_null_value(val):
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_int(val, default=0) -> int:
+    """Safely convert a value to int"""
+    if is_null_value(val):
+        return default
+    try:
+        return int(float(val))
+    except (ValueError, TypeError):
+        return default
+
+
+def create_radar_chart(item: Dict) -> go.Figure:
+    """Create a compact radar chart for movie metrics with color-coded segments centered on each axis"""
+    # Dark gray color for NULL values
+    NULL_COLOR = 'rgba(80, 80, 80, 0.6)'
+    NULL_VALUE = 10  # Normalized display value for NULL metrics
+
+    # Extract raw values (None if NULL)
+    rt_score_raw = item.get('rt_score')
+    metascore_raw = item.get('metascore')
+    imdb_rating_raw = item.get('imdb_rating')
+    imdb_votes_raw = item.get('imdb_votes')
+    tmdb_rating_raw = item.get('tmdb_rating')
+    tmdb_votes_raw = item.get('tmdb_votes')
+
+    # Define metrics with colors and full db names for tooltips
+    # Using degrees for precise angular positioning
+    # 6 main axes at 0°, 60°, 120°, 180°, 240°, 300°
+    metrics = [
+        {
+            'name': 'RT', 'db_name': 'rt_score', 'angle': 0,
+            'value': safe_float(rt_score_raw) if not is_null_value(rt_score_raw) else NULL_VALUE,
+            'raw': rt_score_raw,
+            'is_null': is_null_value(rt_score_raw),
+            'color': 'rgba(214, 39, 40, 0.6)' if not is_null_value(rt_score_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'Meta', 'db_name': 'metascore', 'angle': 60,
+            'value': safe_float(metascore_raw) if not is_null_value(metascore_raw) else NULL_VALUE,
+            'raw': metascore_raw,
+            'is_null': is_null_value(metascore_raw),
+            'color': 'rgba(44, 160, 44, 0.6)' if not is_null_value(metascore_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'IMDB', 'db_name': 'imdb_rating', 'angle': 120,
+            'value': safe_float(imdb_rating_raw) if not is_null_value(imdb_rating_raw) else NULL_VALUE,
+            'raw': imdb_rating_raw,
+            'is_null': is_null_value(imdb_rating_raw),
+            'color': 'rgba(255, 197, 24, 0.6)' if not is_null_value(imdb_rating_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'iVotes', 'db_name': 'imdb_votes', 'angle': 180,
+            'value': normalize_imdb_votes(safe_int(imdb_votes_raw)) if not is_null_value(imdb_votes_raw) else NULL_VALUE,
+            'raw': imdb_votes_raw,
+            'is_null': is_null_value(imdb_votes_raw),
+            'color': 'rgba(153, 115, 0, 0.6)' if not is_null_value(imdb_votes_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'TMDB', 'db_name': 'tmdb_rating', 'angle': 240,
+            'value': safe_float(tmdb_rating_raw) * 10 if not is_null_value(tmdb_rating_raw) else NULL_VALUE,
+            'raw': tmdb_rating_raw,
+            'is_null': is_null_value(tmdb_rating_raw),
+            'color': 'rgba(144, 206, 161, 0.6)' if not is_null_value(tmdb_rating_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'tVotes', 'db_name': 'tmdb_votes', 'angle': 300,
+            'value': normalize_tmdb_votes(safe_int(tmdb_votes_raw)) if not is_null_value(tmdb_votes_raw) else NULL_VALUE,
+            'raw': tmdb_votes_raw,
+            'is_null': is_null_value(tmdb_votes_raw),
+            'color': 'rgba(1, 180, 228, 0.6)' if not is_null_value(tmdb_votes_raw) else NULL_COLOR,
+        },
+    ]
+
+    fig = go.Figure()
+
+    # Create a wedge for each metric centered on its axis
+    # Each wedge spans from midpoint_before -> axis -> midpoint_after
+    for i, metric in enumerate(metrics):
+        prev_i = (i - 1) % len(metrics)
+        next_i = (i + 1) % len(metrics)
+
+        # Calculate midpoint angles (30° offset for 6 metrics with 60° spacing)
+        mid_before = (metric['angle'] - 30) % 360
+        mid_after = (metric['angle'] + 30) % 360
+
+        # Calculate geometric midpoint values (where straight line intersects midpoint ray)
+        val_mid_before = get_geometric_midpoint_radius(
+            metrics[prev_i]['value'], metrics[prev_i]['angle'],
+            metric['value'], metric['angle'],
+            mid_before
+        )
+        val_mid_after = get_geometric_midpoint_radius(
+            metric['value'], metric['angle'],
+            metrics[next_i]['value'], metrics[next_i]['angle'],
+            mid_after
+        )
+
+        # Wedge: center -> mid_before -> axis -> mid_after -> center
+        r_vals = [0, val_mid_before, metric['value'], val_mid_after, 0]
+        theta_vals = [mid_before, mid_before, metric['angle'], mid_after, mid_before]
+
+        # Format raw value (use commas for vote counts, show NULL for missing)
+        if metric['is_null']:
+            raw_display = "NULL"
+        elif 'votes' in metric['db_name']:
+            raw_display = f"{safe_int(metric['raw']):,}"
+        else:
+            raw_display = f"{safe_float(metric['raw']):.1f}"
+
+        fig.add_trace(go.Scatterpolar(
+            r=r_vals,
+            theta=theta_vals,
+            fill='toself',
+            fillcolor=metric['color'],
+            line=dict(color='rgba(0,0,0,0)', width=0),  # Invisible borders
+            mode='lines',
+            name=metric['db_name'],
+            hovertemplate=f"{metric['db_name']}: {raw_display}<extra></extra>"
+        ))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100],
+                showticklabels=False,
+                ticks='',
+                gridcolor='rgba(255,255,255,0.2)'
+            ),
+            angularaxis=dict(
+                showticklabels=False,
+                gridcolor='rgba(255,255,255,0.2)',
+                tickvals=[0, 60, 120, 180, 240, 300],  # 6 lines matching data points
+            ),
+            bgcolor='rgba(0,0,0,0)'
+        ),
+        showlegend=False,
+        dragmode=False,  # Disable drag interactions
+        margin=dict(l=40, r=40, t=30, b=30),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+
+    return fig
 
 
 def fetch_training_data(config: Config, limit: int = 20, offset: int = 0,
@@ -318,60 +538,20 @@ def display_movie_row(item: Dict, config: Config, idx: int):
     imdb_id = item.get("imdb_id")
 
     with st.container():
-        # Summary row with basic info
-        col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 0.8, 0.6, 1.5])
+        # Title row with basic info
+        col1, col2, col3, col4 = st.columns([3, 0.8, 0.6, 1.5])
 
         with col1:
             st.write(f"**{item.get('media_title', 'Unknown')}**")
 
         with col2:
-            rt_score = item.get('rt_score')
-            if rt_score is None:
-                st.progress(0.0)
-                st.caption("RT: NULL")
-            else:
-                st.progress(rt_score / 100.0)
-                st.caption(f"RT: {rt_score}%")
-
-        with col3:
-            imdb_votes = item.get('imdb_votes')
-            if imdb_votes is None:
-                st.progress(0.0)
-                st.caption("IMDB: NULL")
-            else:
-                if isinstance(imdb_votes, int):
-                    progress_value = min(imdb_votes / 100000.0, 1.0)
-                    st.progress(progress_value)
-                    if imdb_votes >= 1000000:
-                        votes_display = f"{imdb_votes/1000000:.1f}M"
-                    elif imdb_votes >= 1000:
-                        votes_display = f"{imdb_votes/1000:.0f}K"
-                    else:
-                        votes_display = str(imdb_votes)
-                    st.caption(f"IMDB: {votes_display}")
-                else:
-                    st.progress(0.0)
-                    st.caption(f"IMDB: {imdb_votes}")
-
-        with col4:
             release_year = item.get('release_year')
             if release_year is None:
-                st.progress(0.0)
-                st.caption("Year: NULL")
+                st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Year</small><br>NULL", unsafe_allow_html=True)
             else:
-                min_year = 1950
-                max_year = datetime.datetime.now().year
+                st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Year</small><br>{release_year}", unsafe_allow_html=True)
 
-                if isinstance(release_year, int):
-                    clamped_year = max(release_year, min_year)
-                    progress_value = (clamped_year - min_year) / (max_year - min_year)
-                    st.progress(progress_value)
-                    st.caption(f"Year: {release_year}")
-                else:
-                    st.progress(0.0)
-                    st.caption(f"Year: {release_year}")
-
-        with col5:
+        with col3:
             origin_country = item.get('origin_country')
             if origin_country and isinstance(origin_country, list):
                 flags = [country_code_to_flag(country) for country in origin_country]
@@ -382,7 +562,7 @@ def display_movie_row(item: Dict, config: Config, idx: int):
                 country_display = 'NULL'
             st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Country</small><br>{country_display}", unsafe_allow_html=True)
 
-        with col6:
+        with col4:
             genres = item.get('genre', [])
             if genres and isinstance(genres, list):
                 genre_emojis = [genre_to_emoji(genre) for genre in genres]
@@ -390,6 +570,15 @@ def display_movie_row(item: Dict, config: Config, idx: int):
             else:
                 genre_display = "NULL"
             st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Genre</small><br>{genre_display}", unsafe_allow_html=True)
+
+        # Radar chart row
+        fig = create_radar_chart(item)
+        st.plotly_chart(fig, use_container_width=True, config={
+            'displayModeBar': False,
+            'scrollZoom': False,
+            'doubleClick': False,
+            'modeBarButtonsToRemove': ['zoom', 'pan', 'zoomIn', 'zoomOut', 'resetScale'],
+        })
 
         # Button row
         current_label = item.get('label', '')
