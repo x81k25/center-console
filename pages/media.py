@@ -39,6 +39,14 @@ hr {
     margin-bottom: 0.5rem !important;
 }
 
+/* Even padding in expander */
+.stExpander [data-testid="stExpanderDetails"] {
+    padding: 0.5rem 0 1rem 0 !important;
+}
+.stExpander [data-testid="stExpanderDetails"] > div {
+    gap: 0.5rem !important;
+}
+
 /* Center button text vertically */
 [data-testid="stBaseButton-secondary"] p,
 [data-testid="stBaseButton-primary"] p,
@@ -89,6 +97,28 @@ hr {
 [data-testid="stHorizontalBlock"] [class*="st-key-delete_"] button:hover {
     background-color: #c82333 !important;
     color: white !important;
+}
+
+/* Refresh button styling (light blue) */
+.st-key-refresh_btn button {
+    background-color: #17a2b8 !important;
+    color: white !important;
+    border: none !important;
+}
+.st-key-refresh_btn button:hover {
+    background-color: #138496 !important;
+    color: white !important;
+}
+
+/* Back button styling (yellow) */
+.st-key-back_btn button {
+    background-color: #ffc107 !important;
+    color: #212529 !important;
+    border: none !important;
+}
+.st-key-back_btn button:hover {
+    background-color: #e0a800 !important;
+    color: #212529 !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -365,37 +395,35 @@ def display_media_item(item: Dict, idx: int, config: Config):
 
 def display_focused_item(item: Dict, config: Config):
     """Display focused item with pipeline editing controls"""
-    # Style for back button
+    # Style for back button (yellow)
     st.markdown("""
     <style>
     .st-key-back_btn button {
-        background-color: #00bcd4 !important;
-        color: white !important;
+        background-color: #ffc107 !important;
+        color: #212529 !important;
         border: none !important;
         font-weight: bold !important;
     }
     .st-key-back_btn button:hover {
-        background-color: #00acc1 !important;
-        color: white !important;
+        background-color: #e0a800 !important;
+        color: #212529 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    if st.button("← Back to Results", use_container_width=False, key="back_btn"):
+    if st.button("← main media page", use_container_width=True, key="back_btn"):
         st.session_state.selected_item = None
         st.rerun()
 
-    st.subheader(f"{item.get('media_title', 'Unknown')}")
-    st.markdown(f"<span style='font-family: monospace; font-size: 1.1em; color: #00ffff; background-color: rgba(0,255,255,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(0,255,255,0.3);'>{item.get('hash')}</span>", unsafe_allow_html=True)
-    st.markdown(f"<span style='font-family: monospace; font-size: 0.9em; color: #ff9800; background-color: rgba(255,152,0,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,152,0,0.3);'>{item.get('original_title', 'Unknown')}</span>", unsafe_allow_html=True)
+    st.subheader(f"{item.get('media_title', 'unknown')}")
+    st.markdown(f"<span style='font-family: monospace; font-size: 0.945em; color: #00ffff; background-color: rgba(0,255,255,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(0,255,255,0.3);'>{item.get('hash')}</span>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-family: monospace; font-size: 0.9em; color: #ff9800; background-color: rgba(255,152,0,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,152,0,0.3); overflow-x: auto; white-space: nowrap; margin-bottom: 1rem;'>{item.get('original_title', 'unknown')}</div>", unsafe_allow_html=True)
 
     res_col1, res_col2, res_spacer = st.columns([1, 5, 0.5])
     with res_col1:
-        st.caption("resolution")
-        st.write(f"**{item.get('resolution', 'Unknown')}**")
+        st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>resolution</small><br>**{item.get('resolution', 'unknown')}**", unsafe_allow_html=True)
     with res_col2:
-        st.caption("video_codec")
-        st.write(f"**{item.get('video_codec') or 'None'}**")
+        st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>video_codec</small><br>**{item.get('video_codec') or 'none'}**", unsafe_allow_html=True)
 
     # Current values
     current_pipeline = item.get('pipeline_status', 'ingested')
@@ -414,8 +442,7 @@ def display_focused_item(item: Dict, config: Config):
         'rejected': '#dc3545',
         'paused': '#ffc107'
     }.get(current_pipeline, '#6c757d')
-    st.caption("pipeline_status")
-    st.markdown(f'<span style="color: {pipeline_color}; font-weight: bold;">{current_pipeline}</span>', unsafe_allow_html=True)
+    st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>pipeline_status</small><br><span style='color: {pipeline_color}; font-weight: bold;'>{current_pipeline}</span>", unsafe_allow_html=True)
 
     error_condition = item.get('error_condition')
     rejection_reason = item.get('rejection_reason')
@@ -424,15 +451,13 @@ def display_focused_item(item: Dict, config: Config):
     err_col1, err_col2, err_spacer = st.columns([1, 5, 0.5])
     with err_col1:
         error_color = '#dc3545' if current_error else '#28a745'
-        error_text = 'True' if current_error else 'False'
-        st.caption("error_status")
-        st.markdown(f'<span style="color: {error_color}; font-weight: bold;">{error_text}</span>', unsafe_allow_html=True)
+        error_text = 'true' if current_error else 'false'
+        st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>error_status</small><br><span style='color: {error_color}; font-weight: bold;'>{error_text}</span>", unsafe_allow_html=True)
     with err_col2:
-        st.caption("error_condition")
         if error_condition:
-            st.markdown(f"<span style='color: #ffc107; font-weight: bold;'>{error_condition}</span>", unsafe_allow_html=True)
+            st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>error_condition</small><br><span style='color: #ffc107; font-weight: bold;'>{error_condition}</span>", unsafe_allow_html=True)
         else:
-            st.markdown("<span style='color: #6c757d;'>None</span>", unsafe_allow_html=True)
+            st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>error_condition</small><br><span style='color: #6c757d;'>none</span>", unsafe_allow_html=True)
 
     # Rejection row
     rej_col1, rej_col2, rej_spacer = st.columns([1, 5, 0.5])
@@ -443,14 +468,12 @@ def display_focused_item(item: Dict, config: Config):
             'rejected': '#dc3545',
             'override': '#ffc107'
         }.get(current_rejection, '#6c757d')
-        st.caption("rejection_status")
-        st.markdown(f'<span style="color: {rejection_color}; font-weight: bold;">{current_rejection}</span>', unsafe_allow_html=True)
+        st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>rejection_status</small><br><span style='color: {rejection_color}; font-weight: bold;'>{current_rejection}</span>", unsafe_allow_html=True)
     with rej_col2:
-        st.caption("rejection_reason")
         if rejection_reason:
-            st.markdown(f"<span style='color: #ffc107; font-weight: bold;'>{rejection_reason}</span>", unsafe_allow_html=True)
+            st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>rejection_reason</small><br><span style='color: #ffc107; font-weight: bold;'>{rejection_reason}</span>", unsafe_allow_html=True)
         else:
-            st.markdown("<span style='color: #6c757d;'>None</span>", unsafe_allow_html=True)
+            st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>rejection_reason</small><br><span style='color: #6c757d;'>none</span>", unsafe_allow_html=True)
 
     st.divider()
     st.write("**update values:**")
@@ -538,7 +561,7 @@ def display_focused_item(item: Dict, config: Config):
     button_col1, button_col2, button_col3, button_col4 = st.columns(4)
 
     with button_col1:
-        if st.button("Submit Pipeline Update", use_container_width=True, key="submit_btn"):
+        if st.button("submit pipeline update", use_container_width=True, key="submit_btn"):
             updates = {}
             if new_pipeline != current_pipeline:
                 updates['pipeline_status'] = new_pipeline
@@ -548,114 +571,114 @@ def display_focused_item(item: Dict, config: Config):
                 updates['rejection_status'] = new_rejection
 
             if updates:
-                with st.spinner("Updating pipeline status..."):
+                with st.spinner("updating pipeline status..."):
                     success, result = make_patch_call(config, item.get('hash'), updates)
 
                 if success:
-                    st.success("Pipeline status updated successfully!")
+                    st.success("pipeline status updated successfully!")
                     st.json(result)
                     st.session_state.selected_item = None
                     st.rerun()
                 else:
-                    st.error("Failed to update pipeline status!")
+                    st.error("failed to update pipeline status!")
                     st.code(result)
             else:
-                st.info("No changes detected")
+                st.info("no changes detected")
 
     with button_col2:
-        if st.button("Approve", use_container_width=True, key="approve_detail_btn"):
-            with st.spinner("Approving..."):
+        if st.button("approve", use_container_width=True, key="approve_detail_btn"):
+            with st.spinner("approving..."):
                 success, result = make_approve_call(config, item.get('hash'))
             if success:
-                st.success("Media entry approved successfully!")
+                st.success("media entry approved successfully!")
                 st.session_state.selected_item = None
                 st.rerun()
             else:
-                st.error(f"Failed to approve: {result}")
+                st.error(f"failed to approve: {result}")
 
     with button_col3:
-        if st.button("Finish", use_container_width=True, key="finish_detail_btn"):
-            with st.spinner("Finishing..."):
+        if st.button("finish", use_container_width=True, key="finish_detail_btn"):
+            with st.spinner("finishing..."):
                 success, result = make_finish_call(config, item.get('hash'))
             if success:
-                st.success("Media entry finished successfully!")
+                st.success("media entry finished successfully!")
                 st.session_state.selected_item = None
                 st.rerun()
             else:
-                st.error(f"Failed to finish: {result}")
+                st.error(f"failed to finish: {result}")
 
     with button_col4:
-        if st.button("Delete Media Entry", use_container_width=True, key="delete_btn"):
-            with st.spinner("Deleting..."):
+        if st.button("delete media entry", use_container_width=True, key="delete_btn"):
+            with st.spinner("deleting..."):
                 success, result = make_soft_delete_call(config, item.get('hash'))
             if success:
-                st.success("Media entry soft deleted successfully!")
+                st.success("media entry soft deleted successfully!")
                 st.session_state.selected_item = None
                 st.rerun()
             else:
-                st.error(f"Failed to delete: {result}")
+                st.error(f"failed to delete: {result}")
 
     # Expandable details section
-    with st.expander(f"Details for {item.get('media_title', 'Unknown')}", expanded=False):
+    with st.expander(f"details for {item.get('media_title', 'unknown')}", expanded=False):
         detail_col1, detail_col2 = st.columns(2)
 
         with detail_col1:
-            st.write("**Basic Info:**")
-            st.write(f"- **Hash:** {item.get('hash', 'NULL')}")
-            st.write(f"- **IMDB ID:** {item.get('imdb_id', 'NULL')}")
-            st.write(f"- **TMDB ID:** {item.get('tmdb_id', 'NULL')}")
-            st.write(f"- **Media Type:** {item.get('media_type', 'NULL')}")
-            st.write(f"- **Release Year:** {item.get('release_year', 'NULL')}")
-            st.write(f"- **Runtime:** {item.get('runtime', 'NULL')} min")
-            st.write(f"- **Original Language:** {item.get('original_language', 'NULL')}")
-            st.write(f"- **Origin Country:** {item.get('origin_country', 'NULL')}")
+            st.write("**basic info:**")
+            st.write(f"- **hash:** {item.get('hash', 'NULL')}")
+            st.write(f"- **imdb_id:** {item.get('imdb_id', 'NULL')}")
+            st.write(f"- **tmdb_id:** {item.get('tmdb_id', 'NULL')}")
+            st.write(f"- **media_type:** {item.get('media_type', 'NULL')}")
+            st.write(f"- **release_year:** {item.get('release_year', 'NULL')}")
+            st.write(f"- **runtime:** {item.get('runtime', 'NULL')} min")
+            st.write(f"- **original_language:** {item.get('original_language', 'NULL')}")
+            st.write(f"- **origin_country:** {item.get('origin_country', 'NULL')}")
 
-            st.write("**Pipeline Status:**")
-            st.write(f"- **Status:** {item.get('pipeline_status', 'NULL')}")
-            st.write(f"- **Error Status:** {item.get('error_status', 'NULL')}")
-            st.write(f"- **Error Condition:** {item.get('error_condition', 'NULL')}")
-            st.write(f"- **Rejection Status:** {item.get('rejection_status', 'NULL')}")
-            st.write(f"- **Rejection Reason:** {item.get('rejection_reason', 'NULL')}")
+            st.write("**pipeline status:**")
+            st.write(f"- **status:** {item.get('pipeline_status', 'NULL')}")
+            st.write(f"- **error_status:** {item.get('error_status', 'NULL')}")
+            st.write(f"- **error_condition:** {item.get('error_condition', 'NULL')}")
+            st.write(f"- **rejection_status:** {item.get('rejection_status', 'NULL')}")
+            st.write(f"- **rejection_reason:** {item.get('rejection_reason', 'NULL')}")
 
         with detail_col2:
-            st.write("**Technical Details:**")
-            st.write(f"- **Resolution:** {item.get('resolution', 'NULL')}")
-            st.write(f"- **Video Codec:** {item.get('video_codec', 'NULL')}")
-            st.write(f"- **Audio Codec:** {item.get('audio_codec', 'NULL')}")
-            st.write(f"- **Upload Type:** {item.get('upload_type', 'NULL')}")
-            st.write(f"- **Uploader:** {item.get('uploader', 'NULL')}")
-            st.write(f"- **RSS Source:** {item.get('rss_source', 'NULL')}")
+            st.write("**technical details:**")
+            st.write(f"- **resolution:** {item.get('resolution', 'NULL')}")
+            st.write(f"- **video_codec:** {item.get('video_codec', 'NULL')}")
+            st.write(f"- **audio_codec:** {item.get('audio_codec', 'NULL')}")
+            st.write(f"- **upload_type:** {item.get('upload_type', 'NULL')}")
+            st.write(f"- **uploader:** {item.get('uploader', 'NULL')}")
+            st.write(f"- **rss_source:** {item.get('rss_source', 'NULL')}")
 
-            st.write("**Ratings & Scores:**")
-            st.write(f"- **IMDB Rating:** {item.get('imdb_rating', 'NULL')}")
-            st.write(f"- **IMDB Votes:** {item.get('imdb_votes', 'NULL')}")
-            st.write(f"- **TMDB Rating:** {item.get('tmdb_rating', 'NULL')}")
-            st.write(f"- **TMDB Votes:** {item.get('tmdb_votes', 'NULL')}")
-            st.write(f"- **RT Score:** {item.get('rt_score', 'NULL')}")
-            st.write(f"- **Metascore:** {item.get('metascore', 'NULL')}")
+            st.write("**ratings & scores:**")
+            st.write(f"- **imdb_rating:** {item.get('imdb_rating', 'NULL')}")
+            st.write(f"- **imdb_votes:** {item.get('imdb_votes', 'NULL')}")
+            st.write(f"- **tmdb_rating:** {item.get('tmdb_rating', 'NULL')}")
+            st.write(f"- **tmdb_votes:** {item.get('tmdb_votes', 'NULL')}")
+            st.write(f"- **rt_score:** {item.get('rt_score', 'NULL')}")
+            st.write(f"- **metascore:** {item.get('metascore', 'NULL')}")
 
-        st.write("**File Paths:**")
-        st.write(f"- **Original Title:** {item.get('original_title', 'NULL')}")
-        st.write(f"- **Parent Path:** {item.get('parent_path', 'NULL')}")
-        st.write(f"- **Target Path:** {item.get('target_path', 'NULL')}")
-        st.write(f"- **Original Path:** {item.get('original_path', 'NULL')}")
+        st.write("**file paths:**")
+        st.write(f"- **original_title:** {item.get('original_title', 'NULL')}")
+        st.write(f"- **parent_path:** {item.get('parent_path', 'NULL')}")
+        st.write(f"- **target_path:** {item.get('target_path', 'NULL')}")
+        st.write(f"- **original_path:** {item.get('original_path', 'NULL')}")
 
         if item.get('original_link'):
-            st.write("**Original Link:**")
+            st.write("**original_link:**")
             st.code(item.get('original_link'), language=None)
 
-        st.write("**Additional Info:**")
-        st.write(f"- **Genres:** {', '.join(item.get('genre', [])) if item.get('genre') else 'NULL'}")
-        st.write(f"- **Production Status:** {item.get('production_status', 'NULL')}")
-        st.write(f"- **Tagline:** {item.get('tagline', 'NULL')}")
+        st.write("**additional info:**")
+        st.write(f"- **genres:** {', '.join(item.get('genre', [])) if item.get('genre') else 'NULL'}")
+        st.write(f"- **production_status:** {item.get('production_status', 'NULL')}")
+        st.write(f"- **tagline:** {item.get('tagline', 'NULL')}")
 
         if item.get('overview'):
-            st.write("**Overview:**")
+            st.write("**overview:**")
             st.write(item.get('overview'))
 
-        st.write("**Timestamps:**")
-        st.write(f"- **Created:** {item.get('created_at', 'NULL')}")
-        st.write(f"- **Updated:** {item.get('updated_at', 'NULL')}")
+        st.write("**timestamps:**")
+        st.write(f"- **created_at:** {item.get('created_at', 'NULL')}")
+        st.write(f"- **updated_at:** {item.get('updated_at', 'NULL')}")
 
 
 def main():
@@ -767,22 +790,6 @@ def main():
     with search_col4:
         if st.button("↻", key="refresh_btn", use_container_width=True):
             st.rerun()
-
-    # Mobile-only enter button
-    st.markdown("""
-    <style>
-    .st-key-mobile_enter_btn {
-        display: none;
-    }
-    @media (max-width: 768px) {
-        .st-key-mobile_enter_btn {
-            display: block;
-        }
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    if st.button("Enter", key="mobile_enter_btn", use_container_width=True):
-        st.rerun()
 
     # Build API call display
     page_size = 20

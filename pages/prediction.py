@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 import time
 
 st.set_page_config(
-    page_title="prediction-anomalies", 
+    page_title="prediction", 
     page_icon="./favicon/android-chrome-192x192.png",
     layout="wide"
 )
@@ -200,7 +200,7 @@ def main():
         st.info("Please set the required environment variables: REAR_DIFF_HOST, REAR_DIFF_PORT")
         return
     
-    st.title("prediction-anomalies")
+    st.title("prediction")
     
     # Initialize session state
     if 'predictions' not in st.session_state:

@@ -1,5 +1,7 @@
 import streamlit as st
 import requests
+import plotly.graph_objects as go
+import math
 from config import Config
 from typing import Dict, List, Optional
 import datetime
@@ -10,57 +12,142 @@ st.set_page_config(
     layout="wide"
 )
 
-# Dynamic CSS for button styling
+# Dynamic CSS for button styling and compact layout
 st.markdown("""
 <style>
-/* Blue button - would_watch column 7 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(7) button[kind="primary"] {
+/* Reduce vertical spacing */
+.stCaption, [data-testid="stCaptionContainer"], small {
+    margin-bottom: -15px !important;
+    padding-bottom: 0 !important;
+}
+[data-testid="stMarkdownContainer"] p {
+    margin-bottom: 0.5rem !important;
+}
+hr {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+}
+[data-testid="stBaseButton-secondary"] p,
+[data-testid="stBaseButton-primary"] p,
+.stButton button p {
+    margin: 0 !important;
+    padding-top: 2px !important;
+}
+
+/* Compact plotly chart container */
+[data-testid="stPlotlyChart"] {
+    margin-top: -10px !important;
+    margin-bottom: -10px !important;
+}
+
+/* Mobile: compact chart without overlap */
+@media (max-width: 768px) {
+    [data-testid="stPlotlyChart"] {
+        margin-top: -45px !important;
+        margin-bottom: -45px !important;
+    }
+}
+
+/* Blue button - would_watch */
+div[class*="st-key-would_watch_"] button[kind="primary"] {
     background-color: #1f77b4 !important;
     color: white !important;
     border-color: #1f77b4 !important;
 }
-div[data-testid="stHorizontalBlock"] > div:nth-child(7) button[kind="secondary"] {
+div[class*="st-key-would_watch_"] button[kind="secondary"] {
     background-color: #2d2d2d !important;
     color: #1f77b4 !important;
     border-color: #1f77b4 !important;
 }
 
-/* Red button - would_not column 8 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="primary"] {
+/* Red button - would_not_watch */
+div[class*="st-key-would_not_watch_"] button[kind="primary"] {
     background-color: #d62728 !important;
     color: white !important;
     border-color: #d62728 !important;
 }
-div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="secondary"] {
+div[class*="st-key-would_not_watch_"] button[kind="secondary"] {
     background-color: #2d2d2d !important;
     color: #d62728 !important;
     border-color: #d62728 !important;
 }
 
-/* Green button - anomalous column 9 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="primary"] {
+/* Green button - anomalous */
+div[class*="st-key-anomalous_"] button[kind="primary"] {
     background-color: #2ca02c !important;
     color: white !important;
     border-color: #2ca02c !important;
 }
-div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="secondary"] {
+div[class*="st-key-anomalous_"] button[kind="secondary"] {
     background-color: #2d2d2d !important;
     color: #2ca02c !important;
     border-color: #2ca02c !important;
 }
 
-/* Custom progress bar colors */
-/* RT Score - Crimson */
-div[data-testid="stColumn"]:nth-child(2) .stProgress > div > div > div > div {
-    background-color: #DC143C !important;
-}
-
-/* IMDB Votes - IMDB Yellow */
-div[data-testid="stColumn"]:nth-child(3) .stProgress > div > div > div > div {
-    background-color: #F5C518 !important;
-}
 </style>
 """, unsafe_allow_html=True)
+
+# Sidebar keys
+with st.sidebar:
+    with st.expander("genre key", expanded=False):
+        st.markdown("""
+| emoji | genre |
+|:---:|:---|
+| 💥 | action |
+| ⛰️ | adventure |
+| ✏️ | animation |
+| 🤣 | comedy |
+| 👮‍♂️ | crime |
+| 📚 | documentary |
+| 💔 | drama |
+| 🏠 | family |
+| 🦄 | fantasy |
+| 🏛️ | history |
+| 😱 | horror |
+| 👶 | kids |
+| 🎵 | music |
+| 🔍 | mystery |
+| 📰 | news |
+| 🎪 | reality |
+| 💕 | romance |
+| 🚀 | science fiction |
+| 💬 | talk |
+| ⚡ | thriller |
+| 📺 | TV movie |
+| ⚔️ | war |
+| 🤠 | western |
+| 🎬 | other |
+""")
+
+    with st.expander("country key", expanded=False):
+        st.markdown("""
+| flag | country |
+|:---:|:---|
+| 🇺🇸 | US |
+| 🇬🇧 | UK |
+| 🇨🇦 | Canada |
+| 🇦🇺 | Australia |
+| 🇫🇷 | France |
+| 🇩🇪 | Germany |
+| 🇮🇹 | Italy |
+| 🇪🇸 | Spain |
+| 🇯🇵 | Japan |
+| 🇰🇷 | South Korea |
+| 🇨🇳 | China |
+| 🇮🇳 | India |
+| 🇧🇷 | Brazil |
+| 🇲🇽 | Mexico |
+| 🇷🇺 | Russia |
+| 🇸🇪 | Sweden |
+| 🇳🇴 | Norway |
+| 🇩🇰 | Denmark |
+| 🇳🇱 | Netherlands |
+| 🇧🇪 | Belgium |
+| 🇮🇪 | Ireland |
+| 🇳🇿 | New Zealand |
+| 🇦🇷 | Argentina |
+| 🇿🇦 | South Africa |
+""")
 
 
 def country_code_to_flag(country_code: str) -> str:
@@ -102,10 +189,229 @@ def genre_to_emoji(genre: str) -> str:
     return genre_map.get(genre, "🎬")
 
 
+def normalize_imdb_votes(votes: int, max_votes: int = 1000000) -> float:
+    """Normalize IMDB votes using log scale (0-100)"""
+    if votes is None or votes <= 0:
+        return 0
+    # Log scale: log(votes) / log(max_votes) * 100
+    return min(math.log10(votes) / math.log10(max_votes) * 100, 100)
+
+
+def get_geometric_midpoint_radius(r1: float, theta1: float, r2: float, theta2: float, theta_mid: float) -> float:
+    """
+    Calculate the radius at theta_mid where the straight line between
+    (r1, theta1) and (r2, theta2) intersects the ray at theta_mid.
+    All angles in degrees.
+    """
+    # Convert to radians
+    t1 = math.radians(theta1)
+    t2 = math.radians(theta2)
+    tm = math.radians(theta_mid)
+
+    # Convert polar to Cartesian
+    x1, y1 = r1 * math.cos(t1), r1 * math.sin(t1)
+    x2, y2 = r2 * math.cos(t2), r2 * math.sin(t2)
+
+    # Direction of the midpoint ray
+    dx_ray, dy_ray = math.cos(tm), math.sin(tm)
+
+    # Line segment direction
+    dx_line, dy_line = x2 - x1, y2 - y1
+
+    # Find intersection using parametric form
+    # Ray: (t * dx_ray, t * dy_ray)
+    # Line: (x1 + s * dx_line, y1 + s * dy_line)
+    # Solve: t * dx_ray = x1 + s * dx_line
+    #        t * dy_ray = y1 + s * dy_line
+
+    denom = dx_ray * dy_line - dy_ray * dx_line
+    if abs(denom) < 1e-10:
+        # Lines are parallel, fall back to average
+        return (r1 + r2) / 2
+
+    t = (x1 * dy_line - y1 * dx_line) / denom
+
+    # t is the radius at the midpoint angle
+    return max(0, t)
+
+
+def normalize_tmdb_votes(votes: int, max_votes: int = 100000) -> float:
+    """Normalize TMDB votes using log scale (0-100)"""
+    if votes is None or votes <= 0:
+        return 0
+    # Log scale: log(votes) / log(max_votes) * 100
+    return min(math.log10(votes) / math.log10(max_votes) * 100, 100)
+
+
+def is_null_value(val) -> bool:
+    """Check if a value is NULL/None/empty"""
+    if val is None:
+        return True
+    if isinstance(val, str) and val.strip() == '':
+        return True
+    return False
+
+
+def safe_float(val, default=0.0) -> float:
+    """Safely convert a value to float"""
+    if is_null_value(val):
+        return default
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        return default
+
+
+def safe_int(val, default=0) -> int:
+    """Safely convert a value to int"""
+    if is_null_value(val):
+        return default
+    try:
+        return int(float(val))
+    except (ValueError, TypeError):
+        return default
+
+
+def create_radar_chart(item: Dict) -> go.Figure:
+    """Create a compact radar chart for movie metrics with color-coded segments centered on each axis"""
+    # Dark gray color for NULL values
+    NULL_COLOR = 'rgba(80, 80, 80, 0.6)'
+    NULL_VALUE = 10  # Normalized display value for NULL metrics
+
+    # Extract raw values (None if NULL)
+    rt_score_raw = item.get('rt_score')
+    metascore_raw = item.get('metascore')
+    imdb_rating_raw = item.get('imdb_rating')
+    imdb_votes_raw = item.get('imdb_votes')
+    tmdb_rating_raw = item.get('tmdb_rating')
+    tmdb_votes_raw = item.get('tmdb_votes')
+
+    # Define metrics with colors and full db names for tooltips
+    # Using degrees for precise angular positioning
+    # 6 main axes at 0°, 60°, 120°, 180°, 240°, 300°
+    metrics = [
+        {
+            'name': 'RT', 'db_name': 'rt_score', 'angle': 0,
+            'value': safe_float(rt_score_raw) if not is_null_value(rt_score_raw) else NULL_VALUE,
+            'raw': rt_score_raw,
+            'is_null': is_null_value(rt_score_raw),
+            'color': 'rgba(214, 39, 40, 0.6)' if not is_null_value(rt_score_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'Meta', 'db_name': 'metascore', 'angle': 60,
+            'value': safe_float(metascore_raw) if not is_null_value(metascore_raw) else NULL_VALUE,
+            'raw': metascore_raw,
+            'is_null': is_null_value(metascore_raw),
+            'color': 'rgba(44, 160, 44, 0.6)' if not is_null_value(metascore_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'IMDB', 'db_name': 'imdb_rating', 'angle': 120,
+            'value': safe_float(imdb_rating_raw) if not is_null_value(imdb_rating_raw) else NULL_VALUE,
+            'raw': imdb_rating_raw,
+            'is_null': is_null_value(imdb_rating_raw),
+            'color': 'rgba(255, 197, 24, 0.6)' if not is_null_value(imdb_rating_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'iVotes', 'db_name': 'imdb_votes', 'angle': 180,
+            'value': normalize_imdb_votes(safe_int(imdb_votes_raw)) if not is_null_value(imdb_votes_raw) else NULL_VALUE,
+            'raw': imdb_votes_raw,
+            'is_null': is_null_value(imdb_votes_raw),
+            'color': 'rgba(153, 115, 0, 0.6)' if not is_null_value(imdb_votes_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'TMDB', 'db_name': 'tmdb_rating', 'angle': 240,
+            'value': safe_float(tmdb_rating_raw) * 10 if not is_null_value(tmdb_rating_raw) else NULL_VALUE,
+            'raw': tmdb_rating_raw,
+            'is_null': is_null_value(tmdb_rating_raw),
+            'color': 'rgba(144, 206, 161, 0.6)' if not is_null_value(tmdb_rating_raw) else NULL_COLOR,
+        },
+        {
+            'name': 'tVotes', 'db_name': 'tmdb_votes', 'angle': 300,
+            'value': normalize_tmdb_votes(safe_int(tmdb_votes_raw)) if not is_null_value(tmdb_votes_raw) else NULL_VALUE,
+            'raw': tmdb_votes_raw,
+            'is_null': is_null_value(tmdb_votes_raw),
+            'color': 'rgba(1, 180, 228, 0.6)' if not is_null_value(tmdb_votes_raw) else NULL_COLOR,
+        },
+    ]
+
+    fig = go.Figure()
+
+    # Create a wedge for each metric centered on its axis
+    # Each wedge spans from midpoint_before -> axis -> midpoint_after
+    for i, metric in enumerate(metrics):
+        prev_i = (i - 1) % len(metrics)
+        next_i = (i + 1) % len(metrics)
+
+        # Calculate midpoint angles (30° offset for 6 metrics with 60° spacing)
+        mid_before = (metric['angle'] - 30) % 360
+        mid_after = (metric['angle'] + 30) % 360
+
+        # Calculate geometric midpoint values (where straight line intersects midpoint ray)
+        val_mid_before = get_geometric_midpoint_radius(
+            metrics[prev_i]['value'], metrics[prev_i]['angle'],
+            metric['value'], metric['angle'],
+            mid_before
+        )
+        val_mid_after = get_geometric_midpoint_radius(
+            metric['value'], metric['angle'],
+            metrics[next_i]['value'], metrics[next_i]['angle'],
+            mid_after
+        )
+
+        # Wedge: center -> mid_before -> axis -> mid_after -> center
+        r_vals = [0, val_mid_before, metric['value'], val_mid_after, 0]
+        theta_vals = [mid_before, mid_before, metric['angle'], mid_after, mid_before]
+
+        # Format raw value (use commas for vote counts, show NULL for missing)
+        if metric['is_null']:
+            raw_display = "NULL"
+        elif 'votes' in metric['db_name']:
+            raw_display = f"{safe_int(metric['raw']):,}"
+        else:
+            raw_display = f"{safe_float(metric['raw']):.1f}"
+
+        fig.add_trace(go.Scatterpolar(
+            r=r_vals,
+            theta=theta_vals,
+            fill='toself',
+            fillcolor=metric['color'],
+            line=dict(color='rgba(0,0,0,0)', width=0),  # Invisible borders
+            mode='lines',
+            name=metric['db_name'],
+            hovertemplate=f"{metric['db_name']}: {raw_display}<extra></extra>"
+        ))
+
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100],
+                showticklabels=False,
+                ticks='',
+                gridcolor='rgba(255,255,255,0.2)'
+            ),
+            angularaxis=dict(
+                showticklabels=False,
+                gridcolor='rgba(255,255,255,0.2)',
+                tickvals=[0, 60, 120, 180, 240, 300],  # 6 lines matching data points
+            ),
+            bgcolor='rgba(0,0,0,0)'
+        ),
+        showlegend=False,
+        dragmode=False,  # Disable drag interactions
+        margin=dict(l=20, r=20, t=10, b=10),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+    )
+
+    return fig
+
+
 def fetch_training_data(config: Config, limit: int = 20, offset: int = 0,
                         search_term: str = None, search_type: str = "title",
                         reviewed_filter: str = "unreviewed",
-                        anomalous_filter: str = "all") -> Optional[Dict]:
+                        anomalous_filter: str = "all",
+                        label_filter: str = "all") -> Optional[Dict]:
     """Fetch training data from the API with filters"""
     try:
         params = {
@@ -136,6 +442,10 @@ def fetch_training_data(config: Config, limit: int = 20, offset: int = 0,
         elif anomalous_filter == "no":
             params["anomalous"] = "false"
         # "all" means no filter
+
+        # Add label filter
+        if label_filter != "all":
+            params["label"] = label_filter
 
         response = requests.get(
             config.training_endpoint,
@@ -239,100 +549,86 @@ def would_not_watch_training(config: Config, imdb_id: str) -> bool:
         return False
 
 
+def would_watch_training(config: Config, imdb_id: str) -> bool:
+    """Mark a training item as would_watch using the would_watch endpoint.
+
+    This sets label to would_watch, marks as human_labeled and reviewed.
+    """
+    try:
+        response = requests.patch(
+            config.get_training_would_watch_endpoint(imdb_id),
+            timeout=config.api_timeout
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        st.error(f"Failed to mark training item {imdb_id} as would_watch: {str(e)}")
+        return False
+
+
 def display_movie_row(item: Dict, config: Config, idx: int):
     """Display a single movie row with all the controls"""
     imdb_id = item.get("imdb_id")
 
     with st.container():
-        # Main row with basic info and buttons
-        col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([3, 1, 1, 0.8, 0.6, 1.5, 1.2, 1.2, 1.2])
+        # Build compact metadata string
+        title = item.get('media_title', 'Unknown')
 
-        with col1:
-            st.write(f"**{item.get('media_title', 'Unknown')}**")
+        # Year
+        release_year = item.get('release_year')
+        year_str = f"({release_year})" if release_year else ""
 
-        with col2:
-            rt_score = item.get('rt_score')
-            if rt_score is None:
-                st.progress(0.0)
-                st.caption("RT: NULL")
-            else:
-                st.progress(rt_score / 100.0)
-                st.caption(f"RT: {rt_score}%")
+        # Country flags
+        origin_country = item.get('origin_country')
+        if origin_country and isinstance(origin_country, list):
+            flags = [country_code_to_flag(country) for country in origin_country]
+            country_str = ''.join(flags)
+        elif origin_country:
+            country_str = country_code_to_flag(str(origin_country))
+        else:
+            country_str = ''
 
-        with col3:
-            imdb_votes = item.get('imdb_votes')
-            if imdb_votes is None:
-                st.progress(0.0)
-                st.caption("IMDB: NULL")
-            else:
-                if isinstance(imdb_votes, int):
-                    progress_value = min(imdb_votes / 100000.0, 1.0)
-                    st.progress(progress_value)
-                    if imdb_votes >= 1000000:
-                        votes_display = f"{imdb_votes/1000000:.1f}M"
-                    elif imdb_votes >= 1000:
-                        votes_display = f"{imdb_votes/1000:.0f}K"
-                    else:
-                        votes_display = str(imdb_votes)
-                    st.caption(f"IMDB: {votes_display}")
-                else:
-                    st.progress(0.0)
-                    st.caption(f"IMDB: {imdb_votes}")
+        # Genre emojis
+        genres = item.get('genre', [])
+        if genres and isinstance(genres, list):
+            genre_emojis = [genre_to_emoji(genre) for genre in genres]
+            genre_str = "".join(genre_emojis)
+        else:
+            genre_str = ''
 
-        with col4:
-            release_year = item.get('release_year')
-            if release_year is None:
-                st.progress(0.0)
-                st.caption("Year: NULL")
-            else:
-                min_year = 1950
-                max_year = datetime.datetime.now().year
+        # Compact single-line display: Title (year) 🇺🇸 💥🤣
+        meta_parts = [p for p in [year_str, country_str, genre_str] if p]
+        meta_str = " ".join(meta_parts)
+        st.markdown(f"**{title}** <span style='color: rgba(250,250,250,0.7);'>{meta_str}</span>", unsafe_allow_html=True)
 
-                if isinstance(release_year, int):
-                    clamped_year = max(release_year, min_year)
-                    progress_value = (clamped_year - min_year) / (max_year - min_year)
-                    st.progress(progress_value)
-                    st.caption(f"Year: {release_year}")
-                else:
-                    st.progress(0.0)
-                    st.caption(f"Year: {release_year}")
+        # Radar chart row
+        fig = create_radar_chart(item)
+        st.plotly_chart(fig, use_container_width=True, config={
+            'displayModeBar': False,
+            'scrollZoom': False,
+            'doubleClick': False,
+            'modeBarButtonsToRemove': ['zoom', 'pan', 'zoomIn', 'zoomOut', 'resetScale'],
+        })
 
-        with col5:
-            origin_country = item.get('origin_country')
-            if origin_country and isinstance(origin_country, list):
-                flags = [country_code_to_flag(country) for country in origin_country]
-                country_display = ''.join(flags)
-            elif origin_country:
-                country_display = country_code_to_flag(str(origin_country))
-            else:
-                country_display = 'NULL'
-            st.write(f"Country: {country_display}")
-
-        with col6:
-            genres = item.get('genre', [])
-            if genres and isinstance(genres, list):
-                genre_emojis = [genre_to_emoji(genre) for genre in genres]
-                genre_display = "".join(genre_emojis)
-            else:
-                genre_display = "NULL"
-            st.write(f"Genre: {genre_display}")
-
+        # Button row
         current_label = item.get('label', '')
         current_anomalous = item.get('anomalous', False)
 
-        with col7:
+        btn_col1, btn_col2, btn_col3 = st.columns(3)
+
+        with btn_col1:
             btn_type = "primary" if current_label == "would_watch" else "secondary"
             if st.button("would_watch", key=f"would_watch_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
-                if update_label(config, imdb_id, "would_watch", current_label):
+                if would_watch_training(config, imdb_id):
                     st.rerun()
 
-        with col8:
+        with btn_col2:
             btn_type = "primary" if current_label == "would_not_watch" else "secondary"
             if st.button("would_not", key=f"would_not_watch_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
                 if would_not_watch_training(config, imdb_id):
                     st.rerun()
 
-        with col9:
+        with btn_col3:
             btn_type = "primary" if current_anomalous else "secondary"
             if st.button("anomalous", key=f"anomalous_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
                 if toggle_anomalous(config, imdb_id, current_anomalous):
@@ -406,6 +702,8 @@ def main():
         st.session_state.reviewed_filter = "unreviewed"
     if 'anomalous_filter' not in st.session_state:
         st.session_state.anomalous_filter = "all"
+    if 'label_filter' not in st.session_state:
+        st.session_state.label_filter = "all"
     if 'page_offset' not in st.session_state:
         st.session_state.page_offset = 0
 
@@ -455,25 +753,21 @@ def main():
                 st.session_state.page_offset = 0
                 st.rerun()
 
+            label_options = ["all", "would_watch", "would_not_watch"]
+            label_filter = st.selectbox(
+                "Label",
+                options=label_options,
+                index=label_options.index(st.session_state.label_filter),
+                key="label_filter_select"
+            )
+            if label_filter != st.session_state.label_filter:
+                st.session_state.label_filter = label_filter
+                st.session_state.page_offset = 0
+                st.rerun()
+
     with search_col4:
         if st.button("↻", key="refresh_btn", use_container_width=True):
             st.rerun()
-
-    # Mobile-only enter button
-    st.markdown("""
-    <style>
-    .st-key-mobile_enter_btn {
-        display: none;
-    }
-    @media (max-width: 768px) {
-        .st-key-mobile_enter_btn {
-            display: block;
-        }
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    if st.button("Enter", key="mobile_enter_btn", use_container_width=True):
-        st.rerun()
 
     # Build and display API URL
     page_size = 20
@@ -501,6 +795,9 @@ def main():
     elif st.session_state.anomalous_filter == "no":
         params["anomalous"] = "false"
 
+    if st.session_state.label_filter != "all":
+        params["label"] = st.session_state.label_filter
+
     param_string = "&".join([f"{k}={v}" for k, v in params.items()])
     api_url = f"{config.training_endpoint}?{param_string}"
     st.code(api_url, language="bash")
@@ -513,7 +810,8 @@ def main():
         search_term=search_term if search_term else None,
         search_type=search_type,
         reviewed_filter=st.session_state.reviewed_filter,
-        anomalous_filter=st.session_state.anomalous_filter
+        anomalous_filter=st.session_state.anomalous_filter,
+        label_filter=st.session_state.label_filter
     )
 
     if not data:
