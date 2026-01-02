@@ -10,57 +10,109 @@ st.set_page_config(
     layout="wide"
 )
 
-# Dynamic CSS for button styling
+# Dynamic CSS for button styling - target buttons by key prefix
 st.markdown("""
 <style>
-/* Blue button - would_watch column 7 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(7) button[kind="primary"] {
+/* Blue button - would_watch */
+div[class*="st-key-would_watch_"] button[kind="primary"] {
     background-color: #1f77b4 !important;
     color: white !important;
     border-color: #1f77b4 !important;
 }
-div[data-testid="stHorizontalBlock"] > div:nth-child(7) button[kind="secondary"] {
+div[class*="st-key-would_watch_"] button[kind="secondary"] {
     background-color: #2d2d2d !important;
     color: #1f77b4 !important;
     border-color: #1f77b4 !important;
 }
 
-/* Red button - would_not column 8 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="primary"] {
+/* Red button - would_not_watch */
+div[class*="st-key-would_not_watch_"] button[kind="primary"] {
     background-color: #d62728 !important;
     color: white !important;
     border-color: #d62728 !important;
 }
-div[data-testid="stHorizontalBlock"] > div:nth-child(8) button[kind="secondary"] {
+div[class*="st-key-would_not_watch_"] button[kind="secondary"] {
     background-color: #2d2d2d !important;
     color: #d62728 !important;
     border-color: #d62728 !important;
 }
 
-/* Green button - anomalous column 9 */
-div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="primary"] {
+/* Green button - anomalous */
+div[class*="st-key-anomalous_"] button[kind="primary"] {
     background-color: #2ca02c !important;
     color: white !important;
     border-color: #2ca02c !important;
 }
-div[data-testid="stHorizontalBlock"] > div:nth-child(9) button[kind="secondary"] {
+div[class*="st-key-anomalous_"] button[kind="secondary"] {
     background-color: #2d2d2d !important;
     color: #2ca02c !important;
     border-color: #2ca02c !important;
 }
 
-/* Custom progress bar colors */
-/* RT Score - Crimson */
-div[data-testid="stColumn"]:nth-child(2) .stProgress > div > div > div > div {
-    background-color: #DC143C !important;
-}
-
-/* IMDB Votes - IMDB Yellow */
-div[data-testid="stColumn"]:nth-child(3) .stProgress > div > div > div > div {
-    background-color: #F5C518 !important;
-}
 </style>
 """, unsafe_allow_html=True)
+
+# Sidebar keys
+with st.sidebar:
+    with st.expander("genre key", expanded=False):
+        st.markdown("""
+| emoji | genre |
+|:---:|:---|
+| 💥 | action |
+| ⛰️ | adventure |
+| ✏️ | animation |
+| 🤣 | comedy |
+| 👮‍♂️ | crime |
+| 📚 | documentary |
+| 💔 | drama |
+| 🏠 | family |
+| 🦄 | fantasy |
+| 🏛️ | history |
+| 😱 | horror |
+| 👶 | kids |
+| 🎵 | music |
+| 🔍 | mystery |
+| 📰 | news |
+| 🎪 | reality |
+| 💕 | romance |
+| 🚀 | science fiction |
+| 💬 | talk |
+| ⚡ | thriller |
+| 📺 | TV movie |
+| ⚔️ | war |
+| 🤠 | western |
+| 🎬 | other |
+""")
+
+    with st.expander("country key", expanded=False):
+        st.markdown("""
+| flag | country |
+|:---:|:---|
+| 🇺🇸 | US |
+| 🇬🇧 | UK |
+| 🇨🇦 | Canada |
+| 🇦🇺 | Australia |
+| 🇫🇷 | France |
+| 🇩🇪 | Germany |
+| 🇮🇹 | Italy |
+| 🇪🇸 | Spain |
+| 🇯🇵 | Japan |
+| 🇰🇷 | South Korea |
+| 🇨🇳 | China |
+| 🇮🇳 | India |
+| 🇧🇷 | Brazil |
+| 🇲🇽 | Mexico |
+| 🇷🇺 | Russia |
+| 🇸🇪 | Sweden |
+| 🇳🇴 | Norway |
+| 🇩🇰 | Denmark |
+| 🇳🇱 | Netherlands |
+| 🇧🇪 | Belgium |
+| 🇮🇪 | Ireland |
+| 🇳🇿 | New Zealand |
+| 🇦🇷 | Argentina |
+| 🇿🇦 | South Africa |
+""")
 
 
 def country_code_to_flag(country_code: str) -> str:
@@ -105,7 +157,8 @@ def genre_to_emoji(genre: str) -> str:
 def fetch_training_data(config: Config, limit: int = 20, offset: int = 0,
                         search_term: str = None, search_type: str = "title",
                         reviewed_filter: str = "unreviewed",
-                        anomalous_filter: str = "all") -> Optional[Dict]:
+                        anomalous_filter: str = "all",
+                        label_filter: str = "all") -> Optional[Dict]:
     """Fetch training data from the API with filters"""
     try:
         params = {
@@ -136,6 +189,10 @@ def fetch_training_data(config: Config, limit: int = 20, offset: int = 0,
         elif anomalous_filter == "no":
             params["anomalous"] = "false"
         # "all" means no filter
+
+        # Add label filter
+        if label_filter != "all":
+            params["label"] = label_filter
 
         response = requests.get(
             config.training_endpoint,
@@ -239,13 +296,30 @@ def would_not_watch_training(config: Config, imdb_id: str) -> bool:
         return False
 
 
+def would_watch_training(config: Config, imdb_id: str) -> bool:
+    """Mark a training item as would_watch using the would_watch endpoint.
+
+    This sets label to would_watch, marks as human_labeled and reviewed.
+    """
+    try:
+        response = requests.patch(
+            config.get_training_would_watch_endpoint(imdb_id),
+            timeout=config.api_timeout
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        st.error(f"Failed to mark training item {imdb_id} as would_watch: {str(e)}")
+        return False
+
+
 def display_movie_row(item: Dict, config: Config, idx: int):
     """Display a single movie row with all the controls"""
     imdb_id = item.get("imdb_id")
 
     with st.container():
-        # Main row with basic info and buttons
-        col1, col2, col3, col4, col5, col6, col7, col8, col9 = st.columns([3, 1, 1, 0.8, 0.6, 1.5, 1.2, 1.2, 1.2])
+        # Summary row with basic info
+        col1, col2, col3, col4, col5, col6 = st.columns([3, 1, 1, 0.8, 0.6, 1.5])
 
         with col1:
             st.write(f"**{item.get('media_title', 'Unknown')}**")
@@ -306,7 +380,7 @@ def display_movie_row(item: Dict, config: Config, idx: int):
                 country_display = country_code_to_flag(str(origin_country))
             else:
                 country_display = 'NULL'
-            st.write(f"Country: {country_display}")
+            st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Country</small><br>{country_display}", unsafe_allow_html=True)
 
         with col6:
             genres = item.get('genre', [])
@@ -315,24 +389,27 @@ def display_movie_row(item: Dict, config: Config, idx: int):
                 genre_display = "".join(genre_emojis)
             else:
                 genre_display = "NULL"
-            st.write(f"Genre: {genre_display}")
+            st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Genre</small><br>{genre_display}", unsafe_allow_html=True)
 
+        # Button row
         current_label = item.get('label', '')
         current_anomalous = item.get('anomalous', False)
 
-        with col7:
+        btn_col1, btn_col2, btn_col3 = st.columns(3)
+
+        with btn_col1:
             btn_type = "primary" if current_label == "would_watch" else "secondary"
             if st.button("would_watch", key=f"would_watch_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
-                if update_label(config, imdb_id, "would_watch", current_label):
+                if would_watch_training(config, imdb_id):
                     st.rerun()
 
-        with col8:
+        with btn_col2:
             btn_type = "primary" if current_label == "would_not_watch" else "secondary"
             if st.button("would_not", key=f"would_not_watch_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
                 if would_not_watch_training(config, imdb_id):
                     st.rerun()
 
-        with col9:
+        with btn_col3:
             btn_type = "primary" if current_anomalous else "secondary"
             if st.button("anomalous", key=f"anomalous_{imdb_id}_{idx}", type=btn_type, use_container_width=True):
                 if toggle_anomalous(config, imdb_id, current_anomalous):
@@ -406,6 +483,8 @@ def main():
         st.session_state.reviewed_filter = "unreviewed"
     if 'anomalous_filter' not in st.session_state:
         st.session_state.anomalous_filter = "all"
+    if 'label_filter' not in st.session_state:
+        st.session_state.label_filter = "all"
     if 'page_offset' not in st.session_state:
         st.session_state.page_offset = 0
 
@@ -455,6 +534,18 @@ def main():
                 st.session_state.page_offset = 0
                 st.rerun()
 
+            label_options = ["all", "would_watch", "would_not_watch"]
+            label_filter = st.selectbox(
+                "Label",
+                options=label_options,
+                index=label_options.index(st.session_state.label_filter),
+                key="label_filter_select"
+            )
+            if label_filter != st.session_state.label_filter:
+                st.session_state.label_filter = label_filter
+                st.session_state.page_offset = 0
+                st.rerun()
+
     with search_col4:
         if st.button("↻", key="refresh_btn", use_container_width=True):
             st.rerun()
@@ -501,6 +592,9 @@ def main():
     elif st.session_state.anomalous_filter == "no":
         params["anomalous"] = "false"
 
+    if st.session_state.label_filter != "all":
+        params["label"] = st.session_state.label_filter
+
     param_string = "&".join([f"{k}={v}" for k, v in params.items()])
     api_url = f"{config.training_endpoint}?{param_string}"
     st.code(api_url, language="bash")
@@ -513,7 +607,8 @@ def main():
         search_term=search_term if search_term else None,
         search_type=search_type,
         reviewed_filter=st.session_state.reviewed_filter,
-        anomalous_filter=st.session_state.anomalous_filter
+        anomalous_filter=st.session_state.anomalous_filter,
+        label_filter=st.session_state.label_filter
     )
 
     if not data:

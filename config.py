@@ -52,6 +52,10 @@ class Config:
     def get_training_would_not_watch_endpoint(self, imdb_id):
         """Get the training would_not_watch endpoint for a specific IMDB ID"""
         return f"{self.base_url}training/{imdb_id}/would_not_watch"
+
+    def get_training_would_watch_endpoint(self, imdb_id):
+        """Get the training would_watch endpoint for a specific IMDB ID"""
+        return f"{self.base_url}training/{imdb_id}/would_watch"
     
     @property
     def media_endpoint(self):
