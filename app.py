@@ -98,9 +98,24 @@ with st.expander("changelog", expanded=False):
     st.subheader("January 2, 2026")
     st.markdown("""
 ### training page
-- **would_watch endpoint**: updated `would_watch` button to use dedicated `/rear-diff/training/{imdb_id}/would_watch` endpoint
-  - mirrors the existing `would_not_watch` endpoint pattern
-  - server-side handling of label, human_labeled, and reviewed flags
+- **radar chart visualization**: added 6-axis radar chart for movie metrics
+  - displays rt_score, metascore, imdb_rating, imdb_votes, tmdb_rating, tmdb_votes
+  - color-coded wedges with geometric midpoint calculations
+  - NULL values shown as dark gray with value of 10
+  - hover tooltips show full database field names
+  - disabled zoom/pan while keeping tooltips
+- **compact layout**: consolidated title, year, country flags, and genre emojis into single line
+- **would_watch endpoint**: updated `would_watch` button to use dedicated endpoint
+- **removed mobile enter button**: simplified search interface
+
+### media page
+- **edit subpage improvements**:
+  - compact key-value display with inline HTML formatting
+  - yellow back button with full width
+  - horizontally scrollable filename on mobile
+  - lowercase text throughout for consistency
+  - light blue refresh button styling
+- **removed mobile enter button**: simplified search interface
 
 ### renamed pages
 - **prediction page**: renamed `prediction_anomalies` to `prediction`

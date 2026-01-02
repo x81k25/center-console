@@ -12,9 +12,42 @@ st.set_page_config(
     layout="wide"
 )
 
-# Dynamic CSS for button styling - target buttons by key prefix
+# Dynamic CSS for button styling and compact layout
 st.markdown("""
 <style>
+/* Reduce vertical spacing */
+.stCaption, [data-testid="stCaptionContainer"], small {
+    margin-bottom: -15px !important;
+    padding-bottom: 0 !important;
+}
+[data-testid="stMarkdownContainer"] p {
+    margin-bottom: 0.5rem !important;
+}
+hr {
+    margin-top: 0.5rem !important;
+    margin-bottom: 0.5rem !important;
+}
+[data-testid="stBaseButton-secondary"] p,
+[data-testid="stBaseButton-primary"] p,
+.stButton button p {
+    margin: 0 !important;
+    padding-top: 2px !important;
+}
+
+/* Compact plotly chart container */
+[data-testid="stPlotlyChart"] {
+    margin-top: -10px !important;
+    margin-bottom: -10px !important;
+}
+
+/* Mobile: compact chart without overlap */
+@media (max-width: 768px) {
+    [data-testid="stPlotlyChart"] {
+        margin-top: -45px !important;
+        margin-bottom: -45px !important;
+    }
+}
+
 /* Blue button - would_watch */
 div[class*="st-key-would_watch_"] button[kind="primary"] {
     background-color: #1f77b4 !important;
@@ -366,7 +399,7 @@ def create_radar_chart(item: Dict) -> go.Figure:
         ),
         showlegend=False,
         dragmode=False,  # Disable drag interactions
-        margin=dict(l=40, r=40, t=30, b=30),
+        margin=dict(l=20, r=20, t=10, b=10),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)'
     )
@@ -538,38 +571,35 @@ def display_movie_row(item: Dict, config: Config, idx: int):
     imdb_id = item.get("imdb_id")
 
     with st.container():
-        # Title row with basic info
-        col1, col2, col3, col4 = st.columns([3, 0.8, 0.6, 1.5])
+        # Build compact metadata string
+        title = item.get('media_title', 'Unknown')
 
-        with col1:
-            st.write(f"**{item.get('media_title', 'Unknown')}**")
+        # Year
+        release_year = item.get('release_year')
+        year_str = f"({release_year})" if release_year else ""
 
-        with col2:
-            release_year = item.get('release_year')
-            if release_year is None:
-                st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Year</small><br>NULL", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Year</small><br>{release_year}", unsafe_allow_html=True)
+        # Country flags
+        origin_country = item.get('origin_country')
+        if origin_country and isinstance(origin_country, list):
+            flags = [country_code_to_flag(country) for country in origin_country]
+            country_str = ''.join(flags)
+        elif origin_country:
+            country_str = country_code_to_flag(str(origin_country))
+        else:
+            country_str = ''
 
-        with col3:
-            origin_country = item.get('origin_country')
-            if origin_country and isinstance(origin_country, list):
-                flags = [country_code_to_flag(country) for country in origin_country]
-                country_display = ''.join(flags)
-            elif origin_country:
-                country_display = country_code_to_flag(str(origin_country))
-            else:
-                country_display = 'NULL'
-            st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Country</small><br>{country_display}", unsafe_allow_html=True)
+        # Genre emojis
+        genres = item.get('genre', [])
+        if genres and isinstance(genres, list):
+            genre_emojis = [genre_to_emoji(genre) for genre in genres]
+            genre_str = "".join(genre_emojis)
+        else:
+            genre_str = ''
 
-        with col4:
-            genres = item.get('genre', [])
-            if genres and isinstance(genres, list):
-                genre_emojis = [genre_to_emoji(genre) for genre in genres]
-                genre_display = "".join(genre_emojis)
-            else:
-                genre_display = "NULL"
-            st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>Genre</small><br>{genre_display}", unsafe_allow_html=True)
+        # Compact single-line display: Title (year) 🇺🇸 💥🤣
+        meta_parts = [p for p in [year_str, country_str, genre_str] if p]
+        meta_str = " ".join(meta_parts)
+        st.markdown(f"**{title}** <span style='color: rgba(250,250,250,0.7);'>{meta_str}</span>", unsafe_allow_html=True)
 
         # Radar chart row
         fig = create_radar_chart(item)
@@ -738,22 +768,6 @@ def main():
     with search_col4:
         if st.button("↻", key="refresh_btn", use_container_width=True):
             st.rerun()
-
-    # Mobile-only enter button
-    st.markdown("""
-    <style>
-    .st-key-mobile_enter_btn {
-        display: none;
-    }
-    @media (max-width: 768px) {
-        .st-key-mobile_enter_btn {
-            display: block;
-        }
-    }
-    </style>
-    """, unsafe_allow_html=True)
-    if st.button("Enter", key="mobile_enter_btn", use_container_width=True):
-        st.rerun()
 
     # Build and display API URL
     page_size = 20
