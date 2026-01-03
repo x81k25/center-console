@@ -30,6 +30,17 @@ A Streamlit-based web application for managing the Rear Differential media proce
 - Sortable by prediction confidence (high to low / low to high)
 
 
+### 🤖 Algorithm Insights (Algo Page)
+- Visualize latest XGBoost model from MLflow
+- Interactive confusion matrix with color-coded cells
+- Radar chart showing model performance metrics (AUC, Accuracy, Precision, Recall, F1)
+- Feature importance table with inline bar charts
+- Decision tree visualization with:
+  - Stepped red-purple-blue gradient for leaf values
+  - Solid/dashed arrows for yes/no branches
+  - Scientific notation for readability
+  - Interactive tree selector
+
 ### 🗃️ Database Migration History
 - View Flyway migration history and status
 - Track successful and failed migrations
@@ -123,6 +134,10 @@ For Kubernetes deployment on bare-metal clusters:
 - `REAR_DIFF_PORT_EXTERNAL`: API port number (e.g., `30812`)
 - `REAR_DIFF_PREFIX`: API base path without slashes (e.g., `rear-diff`)
 - `CENTER_CONSOLE_API_TIMEOUT`: Request timeout in seconds (default: 30)
+- `CENTER_CONSOLE_MLFLOW_HOST`: MLflow server host (e.g., `192.168.50.2`)
+- `CENTER_CONSOLE_MLFLOW_PORT`: MLflow server port (e.g., `30502`)
+- `CENTER_CONSOLE_MLFLOW_USERNAME`: MLflow basic auth username
+- `CENTER_CONSOLE_MLFLOW_PASSWORD`: MLflow basic auth password
 
 **Environment Management**
 - Local development: `.env` file with `python-dotenv`
@@ -167,12 +182,11 @@ For Kubernetes deployment on bare-metal clusters:
 ```
 ├── app.py                    # Main Streamlit homepage
 ├── pages/                    # Streamlit pages
-│   ├── training_backlog.py   # Training data review interface
-│   ├── prediction_anomalies.py # ML prediction analysis
-│   ├── training_search.py    # Search training data by title/IMDB ID
+│   ├── algo.py               # ML model visualization (MLflow integration)
+│   ├── flyway.py             # Database migration history
 │   ├── media.py              # Media browser & pipeline management
-│   ├── get_flyway_migrations.py # Database migration history
-│   └── changelog.py          # Version history
+│   ├── prediction.py         # ML prediction analysis
+│   └── training.py           # Training data review interface
 ├── config.py                 # Configuration management
 ├── pyproject.toml           # Project dependencies and metadata
 ├── uv.lock                  # Dependency lock file

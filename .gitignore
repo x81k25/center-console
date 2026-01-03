@@ -55,6 +55,7 @@ logs/
 streamlit_output.log
 
 # Local development files
+.env
 .env.local
 .env.development
 .env.test

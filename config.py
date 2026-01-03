@@ -11,6 +11,12 @@ class Config:
         self.rear_diff_port = os.getenv('REAR_DIFF_PORT_EXTERNAL')
         self.rear_diff_prefix = os.getenv('REAR_DIFF_PREFIX', 'rear-diff')
         self.api_timeout = int(os.getenv('CENTER_CONSOLE_API_TIMEOUT', '30'))
+
+        # MLflow configuration
+        self.mlflow_host = os.getenv('CENTER_CONSOLE_MLFLOW_HOST')
+        self.mlflow_port = os.getenv('CENTER_CONSOLE_MLFLOW_PORT')
+        self.mlflow_username = os.getenv('CENTER_CONSOLE_MLFLOW_USERNAME')
+        self.mlflow_password = os.getenv('CENTER_CONSOLE_MLFLOW_PASSWORD')
         
         self._validate_config()
         
@@ -66,3 +72,17 @@ class Config:
     def flyway_endpoint(self):
         """Get the flyway history endpoint"""
         return f"{self.base_url}flyway"
+
+    @property
+    def mlflow_base_url(self):
+        """Construct the base URL for MLflow API"""
+        if not self.mlflow_host or not self.mlflow_port:
+            return None
+        return f"http://{self.mlflow_host}:{self.mlflow_port}"
+
+    @property
+    def mlflow_auth(self):
+        """Get MLflow basic auth tuple"""
+        if not self.mlflow_username or not self.mlflow_password:
+            return None
+        return (self.mlflow_username, self.mlflow_password)
