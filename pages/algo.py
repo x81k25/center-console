@@ -360,9 +360,21 @@ def main():
 """
             # Replace the existing graph directive with our styled version
             styled = re.sub(r'graph \[.*?\]', '', dot_string)
-            # Replace edge styles: solid gray for yes, dashed gray for no
-            styled = styled.replace('color="#FF0000"', 'color="#AAAAAA" style="solid"')  # Solid gray for yes
-            styled = styled.replace('color="#0000FF"', 'color="#AAAAAA" style="dashed"')  # Dashed gray for no
+            # Style edges based on label: solid for yes, dashed for no
+            def style_edge(match: re.Match) -> str:
+                """Style edge based on its label (yes* or no*)."""
+                edge_def = match.group(0)
+                # Replace "missing" with "null" in labels
+                edge_def = edge_def.replace('missing', 'null')
+                if 'label="yes' in edge_def:
+                    # Yes edge (yes, yes null, etc): solid gray
+                    edge_def = re.sub(r'color="[^"]*"', 'color="#AAAAAA" style="solid"', edge_def)
+                elif 'label="no' in edge_def:
+                    # No edge (no, no null, etc): dashed gray
+                    edge_def = re.sub(r'color="[^"]*"', 'color="#AAAAAA" style="dashed"', edge_def)
+                return edge_def
+
+            styled = re.sub(r'\d+ -> \d+ \[[^\]]+\]', style_edge, styled)
 
             def flip_edges(dot: str) -> str:
                 """Swap yes/no edge order to flip them horizontally."""
@@ -406,7 +418,7 @@ def main():
 - Start at the **left** (root node) and follow arrows right to a leaf
 - Each box is a **decision**: e.g., `tmdb_votes < 0.00003` means "is tmdb_votes less than 0.00003?"
 - **Solid gray arrow (yes)** → condition is TRUE
-- **Dashed gray arrow (no, missing)** → condition is FALSE or value is missing
+- **Dashed gray arrow (no, null)** → condition is FALSE or value is null
 - **Leaf nodes** show a score: positive = leans "would watch", negative = leans "would not watch"
 - **Leaf values** are displayed as `raw_value × 100` with a % sign for readability (not a true probability)
 - **Final prediction** = sum of leaf scores from ALL 125 trees
