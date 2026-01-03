@@ -265,6 +265,53 @@ def main():
             """Add styling to DOT graph for better readability"""
             import re
 
+            def condense_category_set(match: re.Match) -> str:
+                """Condense category sets like {0,1,2,3,5,7,8,9} to {0-3,5,7-9}"""
+                feature_name = match.group(1)
+                values_str = match.group(2)
+                rest = match.group(3) if match.lastindex >= 3 else ""
+
+                # Parse the comma-separated values
+                try:
+                    values = sorted(int(v.strip()) for v in values_str.split(','))
+                except ValueError:
+                    return match.group(0)  # Return unchanged if parsing fails
+
+                if not values:
+                    return match.group(0)
+
+                # Build ranges from consecutive values
+                ranges = []
+                range_start = values[0]
+                range_end = values[0]
+
+                for v in values[1:]:
+                    if v == range_end + 1:
+                        range_end = v
+                    else:
+                        # Close current range
+                        if range_start == range_end:
+                            ranges.append(str(range_start))
+                        else:
+                            ranges.append(f"{range_start}-{range_end}")
+                        range_start = range_end = v
+
+                # Close final range
+                if range_start == range_end:
+                    ranges.append(str(range_start))
+                else:
+                    ranges.append(f"{range_start}-{range_end}")
+
+                condensed = ','.join(ranges)
+                return f"{feature_name}:{{{condensed}}}{rest}"
+
+            def condense_category_sets(dot: str) -> str:
+                """Find and condense all category set labels."""
+                # Match patterns like: feature_name:{0,1,2,3,4}
+                # Capture: feature_name, the values inside {}, and any trailing content
+                pattern = r'(\w+):\{([\d,\s]+)\}([^"]*)'
+                return re.sub(pattern, condense_category_set, dot)
+
             def value_to_color(value: float) -> str:
                 """Map leaf value to stepped red-purple-blue gradient."""
                 # Clamp and normalize to -1 to 1 range
@@ -336,6 +383,8 @@ def main():
                 return '\n'.join(result)
 
             styled = flip_edges(styled)
+            # Condense category sets like {0,1,2,3} to {0-3}
+            styled = condense_category_sets(styled)
             # Color leaf nodes based on their value
             styled = color_leaves(styled)
             # Insert style block after digraph {
