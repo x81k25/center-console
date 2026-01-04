@@ -603,7 +603,7 @@ def display_movie_row(item: Dict, config: Config, idx: int):
 
         # Radar chart row
         fig = create_radar_chart(item)
-        st.plotly_chart(fig, use_container_width=True, config={
+        st.plotly_chart(fig, use_container_width=True, key=f"radar_{imdb_id}_{idx}", config={
             'displayModeBar': False,
             'scrollZoom': False,
             'doubleClick': False,
