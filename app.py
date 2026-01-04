@@ -94,6 +94,16 @@ st.title("center console")
 
 # Changelog in collapsible expander (default collapsed)
 with st.expander("changelog", expanded=False):
+    # January 4, 2026
+    st.subheader("January 4, 2026")
+    st.markdown("""
+### media page
+- **removed fields no longer in API**: runtime, original_language, origin_country, imdb_rating, imdb_votes, tmdb_rating, tmdb_votes, rt_score, metascore, genre, production_status, tagline, overview
+- **added audio_codec** to top row info display
+""")
+
+    st.markdown("---")
+
     # January 2, 2026
     st.subheader("January 2, 2026")
     st.markdown("""

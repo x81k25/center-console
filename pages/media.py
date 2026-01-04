@@ -419,11 +419,13 @@ def display_focused_item(item: Dict, config: Config):
     st.markdown(f"<span style='font-family: monospace; font-size: 0.945em; color: #00ffff; background-color: rgba(0,255,255,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(0,255,255,0.3);'>{item.get('hash')}</span>", unsafe_allow_html=True)
     st.markdown(f"<div style='font-family: monospace; font-size: 0.9em; color: #ff9800; background-color: rgba(255,152,0,0.1); padding: 4px 8px; border-radius: 4px; border: 1px solid rgba(255,152,0,0.3); overflow-x: auto; white-space: nowrap; margin-bottom: 1rem;'>{item.get('original_title', 'unknown')}</div>", unsafe_allow_html=True)
 
-    res_col1, res_col2, res_spacer = st.columns([1, 5, 0.5])
+    res_col1, res_col2, res_col3, res_spacer = st.columns([1, 1, 1, 3.5])
     with res_col1:
         st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>resolution</small><br>**{item.get('resolution', 'unknown')}**", unsafe_allow_html=True)
     with res_col2:
         st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>video_codec</small><br>**{item.get('video_codec') or 'none'}**", unsafe_allow_html=True)
+    with res_col3:
+        st.markdown(f"<small style='color: rgba(250,250,250,0.6);'>audio_codec</small><br>**{item.get('audio_codec') or 'none'}**", unsafe_allow_html=True)
 
     # Current values
     current_pipeline = item.get('pipeline_status', 'ingested')
@@ -629,9 +631,6 @@ def display_focused_item(item: Dict, config: Config):
             st.write(f"- **tmdb_id:** {item.get('tmdb_id', 'NULL')}")
             st.write(f"- **media_type:** {item.get('media_type', 'NULL')}")
             st.write(f"- **release_year:** {item.get('release_year', 'NULL')}")
-            st.write(f"- **runtime:** {item.get('runtime', 'NULL')} min")
-            st.write(f"- **original_language:** {item.get('original_language', 'NULL')}")
-            st.write(f"- **origin_country:** {item.get('origin_country', 'NULL')}")
 
             st.write("**pipeline status:**")
             st.write(f"- **status:** {item.get('pipeline_status', 'NULL')}")
@@ -649,14 +648,6 @@ def display_focused_item(item: Dict, config: Config):
             st.write(f"- **uploader:** {item.get('uploader', 'NULL')}")
             st.write(f"- **rss_source:** {item.get('rss_source', 'NULL')}")
 
-            st.write("**ratings & scores:**")
-            st.write(f"- **imdb_rating:** {item.get('imdb_rating', 'NULL')}")
-            st.write(f"- **imdb_votes:** {item.get('imdb_votes', 'NULL')}")
-            st.write(f"- **tmdb_rating:** {item.get('tmdb_rating', 'NULL')}")
-            st.write(f"- **tmdb_votes:** {item.get('tmdb_votes', 'NULL')}")
-            st.write(f"- **rt_score:** {item.get('rt_score', 'NULL')}")
-            st.write(f"- **metascore:** {item.get('metascore', 'NULL')}")
-
         st.write("**file paths:**")
         st.write(f"- **original_title:** {item.get('original_title', 'NULL')}")
         st.write(f"- **parent_path:** {item.get('parent_path', 'NULL')}")
@@ -666,15 +657,6 @@ def display_focused_item(item: Dict, config: Config):
         if item.get('original_link'):
             st.write("**original_link:**")
             st.code(item.get('original_link'), language=None)
-
-        st.write("**additional info:**")
-        st.write(f"- **genres:** {', '.join(item.get('genre', [])) if item.get('genre') else 'NULL'}")
-        st.write(f"- **production_status:** {item.get('production_status', 'NULL')}")
-        st.write(f"- **tagline:** {item.get('tagline', 'NULL')}")
-
-        if item.get('overview'):
-            st.write("**overview:**")
-            st.write(item.get('overview'))
 
         st.write("**timestamps:**")
         st.write(f"- **created_at:** {item.get('created_at', 'NULL')}")
