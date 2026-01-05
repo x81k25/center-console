@@ -62,7 +62,11 @@ class Config:
     def get_training_would_watch_endpoint(self, imdb_id):
         """Get the training would_watch endpoint for a specific IMDB ID"""
         return f"{self.base_url}training/{imdb_id}/would_watch"
-    
+
+    def get_training_rerun_metadata_endpoint(self, imdb_id):
+        """Get the training rerun_metadata endpoint for a specific IMDB ID"""
+        return f"{self.base_url}training/{imdb_id}/rerun_metadata"
+
     @property
     def media_endpoint(self):
         """Get the media data endpoint"""
