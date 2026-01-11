@@ -3,6 +3,9 @@ stages:
 
 build:
   stage: build
+  tags:
+    - k8s
+    - docker
   image:
     name: gcr.io/kaniko-project/executor:latest
     entrypoint: [""]
